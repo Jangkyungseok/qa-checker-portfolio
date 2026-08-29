@@ -12,6 +12,7 @@
     "@nestjs/common": "latest",
     "@nestjs/core": "latest",
     "@nestjs/platform-express": "latest",
+    "@supabase/supabase-js": "^2.112.4",
     "bcrypt": "latest",
     "class-transformer": "latest",
     "class-validator": "latest",

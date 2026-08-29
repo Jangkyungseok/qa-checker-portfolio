@@ -3,19 +3,19 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import {
-  createReadStream,
-  existsSync,
-  unlinkSync,
-} from 'fs';
-import { join } from 'path';
+import { randomUUID } from 'crypto';
+import { extname } from 'path';
 import { DbService } from '../db/db.service';
+import { SupabaseStorageService } from '../storage/supabase-storage.service';
 import { CreateTestItemDto } from './dto/create-test-item.dto';
 import { UpdateTestItemDto } from './dto/update-test-item.dto';
 
 @Injectable()
 export class TestItemsService {
-  constructor(private readonly db: DbService) {}
+  constructor(
+    private readonly db: DbService,
+    private readonly storage: SupabaseStorageService,
+  ) {}
 
   async list(includeInactive = false) {
     const result = await this.db.query(
@@ -336,48 +336,51 @@ export class TestItemsService {
     file: any,
     userId: string,
   ) {
-    try {
-      await this.ensureTestItemExists(
-        testItemId,
+    await this.ensureTestItemExists(
+      testItemId,
+    );
+
+    const countResult =
+      await this.db.query<{
+        count: string;
+      }>(
+        `
+        SELECT COUNT(*)::text AS count
+        FROM test_item_attachments
+        WHERE test_item_id = $1
+        `,
+        [testItemId],
       );
 
-      const countResult =
-        await this.db.query<{
-          count: string;
-        }>(
-          `
-          SELECT COUNT(*)::text AS count
-          FROM test_item_attachments
-          WHERE test_item_id = $1
-          `,
-          [testItemId],
-        );
+    if (
+      Number(
+        countResult.rows[0]?.count ?? 0,
+      ) >= 3
+    ) {
+      throw new BadRequestException(
+        'TC당 참고 자료는 최대 3개까지 등록할 수 있습니다.',
+      );
+    }
 
-      if (
-        Number(
-          countResult.rows[0]?.count ?? 0,
-        ) >= 3
-      ) {
-        this.deletePhysicalFile(
-          file.path,
-        );
+    const extension = extname(
+      file.originalname,
+    ).toLowerCase();
+    const storedName = `${randomUUID()}${extension}`;
+    const storagePath =
+      `uploads/test-items/${storedName}`;
 
-        throw new BadRequestException(
-          'TC당 참고 자료는 최대 3개까지 등록할 수 있습니다.',
-        );
-      }
+    const originalName =
+      this.normalizeOriginalName(
+        file.originalname,
+      );
 
-      const relativePath = join(
-        'uploads',
-        'test-items',
-        file.filename,
-      ).replace(/\\/g, '/');
+    await this.storage.upload(
+      storagePath,
+      file.buffer,
+      file.mimetype,
+    );
 
-      const originalName =
-        this.normalizeOriginalName(
-          file.originalname,
-        );
-
+    try {
       const result = await this.db.query(
         `
         INSERT INTO test_item_attachments (
@@ -404,25 +407,17 @@ export class TestItemsService {
         [
           testItemId,
           originalName,
-          file.filename,
+          storedName,
           file.mimetype,
           file.size,
-          relativePath,
+          storagePath,
           userId,
         ],
       );
 
       return result.rows[0];
     } catch (error) {
-      if (
-        file?.path &&
-        existsSync(file.path)
-      ) {
-        this.deletePhysicalFile(
-          file.path,
-        );
-      }
-
+      await this.storage.remove(storagePath);
       throw error;
     }
   }
@@ -468,13 +463,8 @@ export class TestItemsService {
         snapshotReference.rows[0]?.count ?? 0,
       ) === 0
     ) {
-      const absolutePath = join(
-        process.cwd(),
+      await this.storage.remove(
         attachment.file_path,
-      );
-
-      this.deletePhysicalFile(
-        absolutePath,
       );
     }
 
@@ -511,22 +501,13 @@ export class TestItemsService {
 
     const attachment = result.rows[0];
 
-    const absolutePath = join(
-      process.cwd(),
+    const file = await this.storage.download(
       attachment.file_path,
     );
 
-    if (!existsSync(absolutePath)) {
-      throw new NotFoundException(
-        '저장된 첨부파일을 찾을 수 없습니다.',
-      );
-    }
-
     return {
       ...attachment,
-      stream: createReadStream(
-        absolutePath,
-      ),
+      stream: file,
     };
   }
 
@@ -545,18 +526,6 @@ export class TestItemsService {
     }
 
     return decoded;
-  }
-
-  private deletePhysicalFile(
-    path: string,
-  ) {
-    try {
-      if (existsSync(path)) {
-        unlinkSync(path);
-      }
-    } catch {
-      // DB 처리 결과를 우선 유지합니다.
-    }
   }
 
   private async getCategoryDefaults(

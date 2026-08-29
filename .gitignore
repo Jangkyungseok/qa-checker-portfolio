@@ -17,3 +17,7 @@ uploads/
 *serviceAccount*.json
 *.tsbuildinfo
 backend/src.zip
+# Local migration artifacts
+backend/storage-migration.zip
+backend/migrate-legacy-attachments.js
+db/qa-checker-demo-dump.sql

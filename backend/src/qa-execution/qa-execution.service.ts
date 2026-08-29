@@ -2,17 +2,16 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import {
-  createReadStream,
-  existsSync,
-} from 'fs';
-import { join } from 'path';
 import { DbService } from '../db/db.service';
+import { SupabaseStorageService } from '../storage/supabase-storage.service';
 import { SaveTestResultDto } from './dto/save-test-result.dto';
 
 @Injectable()
 export class QaExecutionService {
-  constructor(private readonly db: DbService) {}
+  constructor(
+    private readonly db: DbService,
+    private readonly storage: SupabaseStorageService,
+  ) {}
 
   async getInspectionItems(inspectionId: string) {
     const inspectionResult = await this.db.query(
@@ -239,22 +238,13 @@ export class QaExecutionService {
 
     const attachment = result.rows[0];
 
-    const absolutePath = join(
-      process.cwd(),
+    const file = await this.storage.download(
       attachment.file_path,
     );
 
-    if (!existsSync(absolutePath)) {
-      throw new NotFoundException(
-        '저장된 참고 자료 파일을 찾을 수 없습니다.',
-      );
-    }
-
     return {
       ...attachment,
-      stream: createReadStream(
-        absolutePath,
-      ),
+      stream: file,
     };
   }
 

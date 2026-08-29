@@ -14,12 +14,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { randomUUID } from 'crypto';
-import {
-  mkdirSync,
-} from 'fs';
-import { extname, join } from 'path';
-import { diskStorage } from 'multer';
+import { memoryStorage } from 'multer';
 import { AuthGuard } from '../common/auth.guard';
 import { AuthUser } from '../common/auth-user';
 import { CurrentUser } from '../common/current-user.decorator';
@@ -28,16 +23,6 @@ import { RolesGuard } from '../common/roles.guard';
 import { CreateTestItemDto } from './dto/create-test-item.dto';
 import { UpdateTestItemDto } from './dto/update-test-item.dto';
 import { TestItemsService } from './test-items.service';
-
-const UPLOAD_DIR = join(
-  process.cwd(),
-  'uploads',
-  'test-items',
-);
-
-mkdirSync(UPLOAD_DIR, {
-  recursive: true,
-});
 
 const ALLOWED_MIME_TYPES = new Set([
   'image/png',
@@ -122,23 +107,7 @@ export class TestItemsController {
   @Roles('ADMIN')
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: UPLOAD_DIR,
-        filename: (
-          _request,
-          file,
-          callback,
-        ) => {
-          const extension =
-            extname(file.originalname)
-              .toLowerCase();
-
-          callback(
-            null,
-            `${randomUUID()}${extension}`,
-          );
-        },
-      }),
+      storage: memoryStorage(),
       limits: {
         fileSize: 5 * 1024 * 1024,
       },
