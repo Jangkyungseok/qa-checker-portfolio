@@ -1,0 +1,17 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: qa-checker-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: qa_checker
+      POSTGRES_USER: qa_checker
+      POSTGRES_PASSWORD: qa_checker_dev
+    ports:
+      - "5433:5432"
+    volumes:
+      - qa_checker_pgdata:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+
+volumes:
+  qa_checker_pgdata:

@@ -1,0 +1,32 @@
+{
+  "name": "qa-checker-backend",
+  "version": "0.2.0",
+  "private": true,
+  "scripts": {
+    "start:dev": "nest start --watch",
+    "build": "nest build",
+    "start:prod": "node dist/main.js",
+    "bootstrap:admin": "node dist/bootstrap-admin.js"
+  },
+  "dependencies": {
+    "@nestjs/common": "latest",
+    "@nestjs/core": "latest",
+    "@nestjs/platform-express": "latest",
+    "bcrypt": "latest",
+    "class-transformer": "latest",
+    "class-validator": "latest",
+    "dotenv": "^17.4.2",
+    "pg": "latest",
+    "reflect-metadata": "latest",
+    "rxjs": "latest"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "latest",
+    "@nestjs/schematics": "latest",
+    "@nestjs/testing": "latest",
+    "@types/bcrypt": "latest",
+    "@types/node": "latest",
+    "@types/pg": "latest",
+    "typescript": "^6.0.3"
+  }
+}
