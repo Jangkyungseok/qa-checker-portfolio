@@ -30,7 +30,7 @@ export default function HomePage() {
 
     try {
       const response = await fetch(
-        'http://127.0.0.1:3001/auth/login',
+       `${process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:3001'}/auth/login`,
         {
           method: 'POST',
           headers: {
