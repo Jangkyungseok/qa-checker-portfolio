@@ -8,6 +8,9 @@ import {
 } from 'react';
 import { useRouter } from 'next/navigation';
 
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:3001';
+
 type UserRole = 'USER' | 'LEADER' | 'ADMIN';
 
 interface User {
@@ -283,14 +286,14 @@ export default function TestItemManagementPage() {
         const [categoryResponse, itemResponse] =
           await Promise.all([
             fetch(
-              'http://127.0.0.1:3001/categories?includeInactive=true',
+              `${API_BASE_URL}/categories?includeInactive=true`,
               {
                 headers,
                 cache: 'no-store',
               },
             ),
             fetch(
-              'http://127.0.0.1:3001/test-items?includeInactive=true',
+              `${API_BASE_URL}/test-items?includeInactive=true`,
               {
                 headers,
                 cache: 'no-store',
@@ -659,7 +662,7 @@ export default function TestItemManagementPage() {
         selectedCategory
       ) {
         const updateResponse = await fetch(
-          `http://127.0.0.1:3001/categories/${categoryDraft.id}`,
+          `${API_BASE_URL}/categories/${categoryDraft.id}`,
           {
             method: 'PATCH',
             headers: {
@@ -701,7 +704,7 @@ export default function TestItemManagementPage() {
           selectedCategory.is_active
         ) {
           const activeResponse = await fetch(
-            `http://127.0.0.1:3001/categories/${categoryDraft.id}/${
+            `${API_BASE_URL}/categories/${categoryDraft.id}/${
               categoryDraft.is_active
                 ? 'activate'
                 : 'deactivate'
@@ -736,7 +739,7 @@ export default function TestItemManagementPage() {
         selectedItem
       ) {
         const updateResponse = await fetch(
-          `http://127.0.0.1:3001/test-items/${itemDraft.id}`,
+          `${API_BASE_URL}/test-items/${itemDraft.id}`,
           {
             method: 'PATCH',
             headers: {
@@ -783,7 +786,7 @@ export default function TestItemManagementPage() {
           selectedItem.is_active
         ) {
           const activeResponse = await fetch(
-            `http://127.0.0.1:3001/test-items/${itemDraft.id}/${
+            `${API_BASE_URL}/test-items/${itemDraft.id}/${
               itemDraft.is_active
                 ? 'activate'
                 : 'deactivate'
@@ -816,7 +819,7 @@ export default function TestItemManagementPage() {
             pendingAttachmentChanges.deletedIds
           ) {
             const deleteResponse = await fetch(
-              `http://127.0.0.1:3001/test-items/${itemDraft.id}/attachments/${attachmentId}`,
+              `${API_BASE_URL}/test-items/${itemDraft.id}/attachments/${attachmentId}`,
               {
                 method: 'DELETE',
                 headers: {
@@ -844,7 +847,7 @@ export default function TestItemManagementPage() {
             formData.append('file', file);
 
             const uploadResponse = await fetch(
-              `http://127.0.0.1:3001/test-items/${itemDraft.id}/attachments`,
+              `${API_BASE_URL}/test-items/${itemDraft.id}/attachments`,
               {
                 method: 'POST',
                 headers: {
@@ -1079,7 +1082,7 @@ export default function TestItemManagementPage() {
         }
 
         const response = await fetch(
-          'http://127.0.0.1:3001/categories',
+          `${API_BASE_URL}/categories`,
           {
             method: 'POST',
             headers: {
@@ -1165,7 +1168,7 @@ export default function TestItemManagementPage() {
         }
 
         const response = await fetch(
-          'http://127.0.0.1:3001/test-items',
+          `${API_BASE_URL}/test-items`,
           {
             method: 'POST',
             headers: {
@@ -1216,7 +1219,7 @@ export default function TestItemManagementPage() {
           formData.append('file', file);
 
           const attachmentResponse = await fetch(
-            `http://127.0.0.1:3001/test-items/${data.id}/attachments`,
+            `${API_BASE_URL}/test-items/${data.id}/attachments`,
             {
               method: 'POST',
               headers: {
@@ -1302,7 +1305,7 @@ export default function TestItemManagementPage() {
     try {
       if (token) {
         await fetch(
-          'http://127.0.0.1:3001/auth/logout',
+          `${API_BASE_URL}/auth/logout`,
           {
             method: 'POST',
             headers: {
@@ -2264,7 +2267,7 @@ function TestItemEditor({
 
       try {
         const response = await fetch(
-          `http://127.0.0.1:3001/test-items/${draft.id}/attachments`,
+          `${API_BASE_URL}/test-items/${draft.id}/attachments`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -2438,7 +2441,7 @@ function TestItemEditor({
 
     try {
       const response = await fetch(
-        `http://127.0.0.1:3001/test-items/${draft.id}/attachments/${attachment.id}/file`,
+        `${API_BASE_URL}/test-items/${draft.id}/attachments/${attachment.id}/file`,
         {
           headers: {
             Authorization: `Bearer ${token}`,

@@ -8,6 +8,9 @@ import {
 } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:3001';
+
 type ResultStatus = 'PASS' | 'FAIL' | 'SKIP';
 
 interface HistoryItem {
@@ -208,7 +211,7 @@ function ReferenceAttachments({
       for (const attachment of imageAttachments) {
         try {
           const response = await fetch(
-            `http://127.0.0.1:3001/inspection-items/${item.id}/attachments/${attachment.id}/file`,
+            `${API_BASE_URL}/inspection-items/${item.id}/attachments/${attachment.id}/file`,
             {
               headers: {
                 Authorization: `Bearer ${token}`,
@@ -265,7 +268,7 @@ function ReferenceAttachments({
 
     try {
       const response = await fetch(
-        `http://127.0.0.1:3001/inspection-items/${item.id}/attachments/${attachment.id}/file`,
+        `${API_BASE_URL}/inspection-items/${item.id}/attachments/${attachment.id}/file`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -645,7 +648,7 @@ export default function InspectionExecutionPage() {
       setErrorMessage('');
 
       const response = await fetch(
-        `http://127.0.0.1:3001/inspections/${targetInspectionId}/items`,
+        `${API_BASE_URL}/inspections/${targetInspectionId}/items`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -912,7 +915,7 @@ export default function InspectionExecutionPage() {
 
     try {
       const response = await fetch(
-        `http://127.0.0.1:3001/inspection-items/${selectedItem.id}/result`,
+        `${API_BASE_URL}/inspection-items/${selectedItem.id}/result`,
         {
           method: 'PUT',
           headers: {

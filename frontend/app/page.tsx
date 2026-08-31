@@ -3,6 +3,9 @@
 import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:3001';
+
 interface LoginResponse {
   token: string;
   expiresAt: string;
@@ -30,7 +33,7 @@ export default function HomePage() {
 
     try {
       const response = await fetch(
-       `${process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:3001'}/auth/login`,
+       `${API_BASE_URL}/auth/login`,
         {
           method: 'POST',
           headers: {

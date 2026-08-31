@@ -8,6 +8,9 @@ import {
 } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:3001';
+
 interface User {
   id: string;
   email: string;
@@ -98,7 +101,7 @@ export default function ProjectDetailPage() {
       setErrorMessage('');
 
       const response = await fetch(
-        `http://127.0.0.1:3001/inspections?projectId=${projectId}`,
+        `${API_BASE_URL}/inspections?projectId=${projectId}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -159,7 +162,7 @@ export default function ProjectDetailPage() {
 
     try {
       const response = await fetch(
-        'http://127.0.0.1:3001/inspections',
+        `${API_BASE_URL}/inspections`,
         {
           method: 'POST',
           headers: {
@@ -220,7 +223,7 @@ export default function ProjectDetailPage() {
 
     try {
       const response = await fetch(
-        `http://127.0.0.1:3001/inspections/${deleteTarget.id}`,
+        `${API_BASE_URL}/inspections/${deleteTarget.id}`,
         {
           method: 'DELETE',
           headers: {
@@ -256,7 +259,7 @@ export default function ProjectDetailPage() {
 
     try {
       if (token) {
-        await fetch('http://127.0.0.1:3001/auth/logout', {
+        await fetch(`${API_BASE_URL}/auth/logout`, {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${token}`,

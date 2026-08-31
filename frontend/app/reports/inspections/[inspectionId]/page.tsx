@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:3001';
+
 type ResultStatus = 'PASS' | 'FAIL' | 'SKIP' | null;
 
 interface Inspection {
@@ -129,7 +132,7 @@ export default function InspectionReportPage() {
 
       try {
         const response = await fetch(
-          `http://127.0.0.1:3001/reports/inspections/${inspectionId}`,
+          `${API_BASE_URL}/reports/inspections/${inspectionId}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
