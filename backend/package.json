@@ -26,6 +26,7 @@
     "@nestjs/schematics": "latest",
     "@nestjs/testing": "latest",
     "@types/bcrypt": "latest",
+    "@types/multer": "^2.2.0",
     "@types/node": "latest",
     "@types/pg": "latest",
     "typescript": "^6.0.3"
