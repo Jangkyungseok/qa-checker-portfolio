@@ -513,7 +513,7 @@ function ReferenceAttachments({
                   height: '32px',
                   display: 'inline-flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
+                  justifyContent: 'flex-start',
                   flex: '0 0 auto',
                   borderRadius: '7px',
                   background: '#e6edf6',
@@ -621,6 +621,9 @@ export default function InspectionExecutionPage() {
 
   const executionDetailRef =
     useRef<HTMLElement | null>(null);
+
+  const memoTextareaRef =
+    useRef<HTMLTextAreaElement | null>(null);
 
   async function fetchInspection(
     targetInspectionId: string,
@@ -769,6 +772,18 @@ export default function InspectionExecutionPage() {
       }
     };
   }, []);
+
+
+  useEffect(() => {
+    const textarea = memoTextareaRef.current;
+
+    if (!textarea) {
+      return;
+    }
+
+    textarea.style.height = '84px';
+    textarea.style.height = `${Math.max(84, textarea.scrollHeight)}px`;
+  }, [draftMemo, draftStatus]);
 
   const selectedItem = useMemo(() => {
     if (!qa || !selectedItemId) {
@@ -1070,6 +1085,11 @@ export default function InspectionExecutionPage() {
 
   function selectStatus(status: ResultStatus) {
     setDraftStatus(status);
+
+    if (status === 'PASS') {
+      setDraftMemo('');
+    }
+
     setIsDirty(true);
   }
 
@@ -1374,7 +1394,18 @@ export default function InspectionExecutionPage() {
           </p>
         </section>
       ) : (
-        <section className="execution-layout">
+        <section
+          className="execution-layout"
+          style={{
+            display: 'grid',
+            gridTemplateColumns:
+              'minmax(250px, 0.9fr) minmax(0, 2.55fr) minmax(300px, 1.05fr)',
+            gap: '12px',
+            paddingRight: '28px',
+            boxSizing: 'border-box',
+            alignItems: 'start',
+          }}
+        >
           <aside className="execution-sidebar">
             <div className="sidebar-title">
               <div>
@@ -1508,255 +1539,451 @@ export default function InspectionExecutionPage() {
           </aside>
 
           {selectedItem && (
-            <section
-              ref={executionDetailRef}
-              className="execution-detail"
-            >
-              {selectedItem.status && (
-                <div
-                  className={`saved-result-panel ${selectedItem.status.toLowerCase()}`}
-                >
-                  <div>
-                    <span>현재 결과</span>
+            <>
+              <section
+                ref={executionDetailRef}
+                className="execution-detail"
+                style={{
+                  minWidth: 0,
+                }}
+              >
+                <div className="tc-heading">
+                  <span>
+                    {selectedItem.tc_code ?? 'TC-----'} ·{' '}
+                    {selectedIndex + 1} / {qa.items.length}
+                  </span>
 
-                    <strong>
-                      {statusLabel(
-                        selectedItem.status,
-                      )}
-                    </strong>
+                  <h2>
+                    {selectedItem.item_title}
+                  </h2>
+                </div>
+
+                <div className="tc-content-block">
+                  <h3>확인 내용</h3>
+
+                  {selectedItem.category_name ===
+                    'iOS 검수' && (
+                    <div
+                      style={{
+                        margin: '0 0 10px',
+                        padding: '9px 11px',
+                        border: '1px solid #efc1c1',
+                        borderRadius: '7px',
+                        background: '#fff5f5',
+                        color: '#b33f3f',
+                        fontSize: '10px',
+                        fontWeight: 900,
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      #마켓 검수 사항으로 필수 대응 필요#
+                    </div>
+                  )}
+
+                  <p>
+                    {selectedItem.check_content}
+                  </p>
+                </div>
+
+                <div className="tc-content-block">
+                  <h3>테스트 방법</h3>
+
+                  <div className="test-method-text">
+                    {
+                      splitTestMethod(
+                        selectedItem.test_method,
+                      ).description
+                    }
                   </div>
+                </div>
 
-                  <div className="saved-result-history">
-                    {selectedItem.recent_history.length >
-                    0 ? (
-                      selectedItem.recent_history
-                        .slice(0, 2)
-                        .map((history) => (
-                          <span key={history.id}>
-                            {history.changed_by_name}{' '}
-                            {formatHistoryTime(
-                              history.changed_at,
-                            )}
-                          </span>
-                        ))
+                {splitTestMethod(
+                  selectedItem.test_method,
+                ).operationSteps && (
+                  <div className="tc-content-block">
+                    <h3>조작 순서</h3>
+
+                    <div
+                      style={{
+                        marginTop: '8px',
+                        padding: '12px 14px',
+                        borderRadius: '8px',
+                        background: '#f3f7fb',
+                        color: '#3f648c',
+                        fontWeight: 700,
+                        lineHeight: 1.7,
+                        whiteSpace: 'pre-wrap',
+                      }}
+                    >
+                      {
+                        splitTestMethod(
+                          selectedItem.test_method,
+                        ).operationSteps
+                      }
+                    </div>
+                  </div>
+                )}
+
+                {selectedItem.attachments?.length > 0 && (
+                  <ReferenceAttachments
+                    item={selectedItem}
+                    onError={setErrorMessage}
+                  />
+                )}
+
+                {selectedItem.reference_note && (
+                  <div className="tc-content-block reference">
+                    <h3>
+                      참고 / 판단 기준
+                    </h3>
+
+                    <p>
+                      {selectedItem.reference_note}
+                    </p>
+                  </div>
+                )}
+              </section>
+
+              <aside
+                aria-label="테스트 판정"
+                style={{
+                  position: 'sticky',
+                  top: '18px',
+                  alignSelf: 'start',
+                  marginTop: '72px',
+                  minWidth: 0,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                }}
+              >
+                <div
+                  style={{
+                    position: 'relative',
+                    minWidth: 0,
+                    padding: '16px 16px 14px',
+                    border: `2px solid ${
+                      selectedItem.status === 'PASS'
+                        ? '#5f8f73'
+                        : selectedItem.status === 'FAIL'
+                          ? '#b96868'
+                          : selectedItem.status === 'SKIP'
+                            ? '#b6924c'
+                            : '#aeb8c3'
+                    }`,
+                    borderRadius: '12px',
+                    background: '#ffffff',
+                    boxShadow:
+                      '0 8px 24px rgba(34, 58, 83, 0.07)',
+                  }}
+                >
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: '10px',
+                      right: '10px',
+                      padding: '5px 8px',
+                      borderRadius: '999px',
+                      background: '#eef3f8',
+                      color: '#63778d',
+                      fontSize: '9px',
+                      fontWeight: 900,
+                    }}
+                  >
+                    {selectedIndex + 1}/{qa.items.length}
+                  </span>
+
+                  <strong
+                    style={{
+                      display: 'block',
+                      paddingTop: '2px',
+                      color:
+                        selectedItem.status === 'PASS'
+                          ? '#4f795f'
+                          : selectedItem.status === 'FAIL'
+                            ? '#9e5353'
+                            : selectedItem.status === 'SKIP'
+                              ? '#8d712f'
+                              : '#7d8995',
+                      fontSize: '24px',
+                      fontWeight: 900,
+                      letterSpacing: '0.3px',
+                      textAlign: 'center',
+                    }}
+                  >
+                    {selectedItem.status
+                      ? statusLabel(selectedItem.status)
+                      : '미진행'}
+                  </strong>
+
+                  <div
+                    style={{
+                      marginTop: '9px',
+                      minHeight: '34px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'flex-start',
+                      gap: '2px',
+                      textAlign: 'center',
+                    }}
+                  >
+                    {selectedItem.recent_history.length > 0 ? (
+                      <>
+                        <span
+                          style={{
+                            color: '#596b7f',
+                            fontSize: '11px',
+                            fontWeight: 800,
+                            lineHeight: 1.35,
+                          }}
+                        >
+                          {
+                            selectedItem.recent_history[0]
+                              .changed_by_name
+                          }
+                        </span>
+
+                        <span
+                          style={{
+                            color: '#8794a2',
+                            fontSize: '10px',
+                            fontWeight: 700,
+                            lineHeight: 1.35,
+                          }}
+                        >
+                          {formatHistoryTime(
+                            selectedItem.recent_history[0]
+                              .changed_at,
+                          )}
+                        </span>
+                      </>
                     ) : (
-                      <span>
-                        저장된 이력 없음
+                      <span
+                        style={{
+                          marginTop: '4px',
+                          color: '#8794a2',
+                          fontSize: '10px',
+                          fontWeight: 700,
+                        }}
+                      >
+                        저장된 결과 없음
                       </span>
                     )}
                   </div>
                 </div>
-              )}
 
-              <div className="tc-heading">
-                <span>
-                  {selectedItem.tc_code ?? 'TC-----'} ·{' '}
-                  {selectedIndex + 1} / {qa.items.length}
-                </span>
-
-                <h2>
-                  {selectedItem.item_title}
-                </h2>
-              </div>
-
-              <div className="tc-content-block">
-                <h3>확인 내용</h3>
-
-                {selectedItem.category_name ===
-                  'iOS 검수' && (
+                <div
+                  style={{
+                    minWidth: 0,
+                    padding: '16px',
+                    border: '1px solid #d9e2ec',
+                    borderRadius: '12px',
+                    background: '#ffffff',
+                    boxShadow:
+                      '0 8px 24px rgba(34, 58, 83, 0.08)',
+                  }}
+                >
                   <div
                     style={{
-                      margin: '0 0 10px',
-                      padding: '9px 11px',
-                      border: '1px solid #efc1c1',
-                      borderRadius: '7px',
-                      background: '#fff5f5',
-                      color: '#b33f3f',
-                      fontSize: '10px',
-                      fontWeight: 900,
-                      lineHeight: 1.5,
+                      display: 'grid',
+                      gridTemplateColumns: '1fr',
+                      gap: '7px',
                     }}
                   >
-                    #마켓 검수 사항으로 필수 대응 필요#
+                    <button
+                      type="button"
+                      className={`result-button pass ${
+                        draftStatus === 'PASS'
+                          ? 'active'
+                          : ''
+                      }`}
+                      onClick={() => selectStatus('PASS')}
+                      style={{
+                        width: '100%',
+                      }}
+                    >
+                      PASS
+                    </button>
+
+                    <button
+                      type="button"
+                      className={`result-button fail ${
+                        draftStatus === 'FAIL'
+                          ? 'active'
+                          : ''
+                      }`}
+                      onClick={() => selectStatus('FAIL')}
+                      style={{
+                        width: '100%',
+                      }}
+                    >
+                      FAIL
+                    </button>
+
+                    <button
+                      type="button"
+                      className={`result-button skip ${
+                        draftStatus === 'SKIP'
+                          ? 'active'
+                          : ''
+                      }`}
+                      onClick={() => selectStatus('SKIP')}
+                      style={{
+                        width: '100%',
+                      }}
+                    >
+                      SKIP
+                    </button>
                   </div>
-                )}
-
-                <p>
-                  {selectedItem.check_content}
-                </p>
-              </div>
-
-              <div className="tc-content-block">
-                <h3>테스트 방법</h3>
-
-                <div className="test-method-text">
-                  {
-                    splitTestMethod(
-                      selectedItem.test_method,
-                    ).description
-                  }
-                </div>
-              </div>
-
-              {splitTestMethod(
-                selectedItem.test_method,
-              ).operationSteps && (
-                <div className="tc-content-block">
-                  <h3>조작 순서</h3>
 
                   <div
                     style={{
-                      marginTop: '8px',
-                      padding: '12px 14px',
-                      borderRadius: '8px',
-                      background: '#f3f7fb',
-                      color: '#3f648c',
-                      fontWeight: 700,
-                      lineHeight: 1.7,
-                      whiteSpace: 'pre-wrap',
+                      display: 'grid',
+                      gridTemplateRows:
+                        draftStatus === 'FAIL' ||
+                        draftStatus === 'SKIP'
+                          ? '1fr'
+                          : '0fr',
+                      opacity:
+                        draftStatus === 'FAIL' ||
+                        draftStatus === 'SKIP'
+                          ? 1
+                          : 0,
+                      transition:
+                        'grid-template-rows 180ms ease, opacity 180ms ease',
                     }}
                   >
-                    {
-                      splitTestMethod(
-                        selectedItem.test_method,
-                      ).operationSteps
-                    }
+                    <div
+                      style={{
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <label
+                        className="result-memo"
+                        style={{
+                          marginTop: '12px',
+                          display: 'block',
+                        }}
+                      >
+                        메모
+
+                        <textarea
+                          ref={memoTextareaRef}
+                          value={draftMemo}
+                          onChange={(event) => {
+                            setDraftMemo(event.target.value);
+                            setIsDirty(true);
+                          }}
+                          maxLength={500}
+                          placeholder={
+                            draftStatus === 'FAIL'
+                              ? 'FAIL 사유나 확인 내용을 입력하세요.'
+                              : 'SKIP 사유나 확인 내용을 입력하세요.'
+                          }
+                          style={{
+                            width: '100%',
+                            height: '84px',
+                            minHeight: '84px',
+                            overflowY: 'hidden',
+                            resize: 'none',
+                            boxSizing: 'border-box',
+                          }}
+                        />
+                      </label>
+                    </div>
                   </div>
-                </div>
-              )}
 
-              {selectedItem.attachments?.length > 0 && (
-                <ReferenceAttachments
-                  item={selectedItem}
-                  onError={setErrorMessage}
-                />
-              )}
-
-
-              {selectedItem.reference_note && (
-                <div className="tc-content-block reference">
-                  <h3>
-                    참고 / 판단 기준
-                  </h3>
-
-                  <p>
-                    {selectedItem.reference_note}
-                  </p>
-                </div>
-              )}
-
-              <div className="result-editor">
-                <div>
-                  <h3>테스트 결과</h3>
-
-                  <p>
-                    결과를 선택한 뒤 다음 항목으로
-                    이동하면 저장됩니다.
-                  </p>
-                </div>
-
-                <div className="result-buttons">
-                  <button
-                    type="button"
-                    className={`result-button pass ${
-                      draftStatus === 'PASS'
-                        ? 'active'
-                        : ''
-                    }`}
-                    onClick={() =>
-                      selectStatus('PASS')
-                    }
-                  >
-                    PASS
-                  </button>
-
-                  <button
-                    type="button"
-                    className={`result-button fail ${
-                      draftStatus === 'FAIL'
-                        ? 'active'
-                        : ''
-                    }`}
-                    onClick={() =>
-                      selectStatus('FAIL')
-                    }
-                  >
-                    FAIL
-                  </button>
-
-                  <button
-                    type="button"
-                    className={`result-button skip ${
-                      draftStatus === 'SKIP'
-                        ? 'active'
-                        : ''
-                    }`}
-                    onClick={() =>
-                      selectStatus('SKIP')
-                    }
-                  >
-                    SKIP
-                  </button>
-                </div>
-
-                <label className="result-memo">
-                  메모
-
-                  <textarea
-                    value={draftMemo}
-                    onChange={(event) => {
-                      setDraftMemo(
-                        event.target.value,
-                      );
-
-                      setIsDirty(true);
+                  <div
+                    style={{
+                      marginTop: '13px',
+                      paddingTop: '11px',
+                      borderTop: '1px solid #edf0f4',
+                      minHeight: '20px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '8px',
                     }}
-                    maxLength={500}
-                    placeholder="필요한 경우 메모를 입력하세요."
-                  />
-                </label>
-              </div>
+                  >
+                    <span
+                      style={{
+                        color: isDirty
+                          ? '#a87337'
+                          : '#7f8d9c',
+                        fontSize: '9px',
+                        fontWeight: 800,
+                      }}
+                    >
+                      {isSaving
+                        ? '저장 중...'
+                        : isDirty
+                          ? '변경사항 있음'
+                          : '저장됨'}
+                    </span>
 
-              {errorMessage && (
-                <div className="login-error execution-error">
-                  {errorMessage}
+                    <span
+                      style={{
+                        color: '#9aa6b3',
+                        fontSize: '8px',
+                      }}
+                    >
+                      이동 시 자동 저장
+                    </span>
+                  </div>
+
+                  <div
+                    style={{
+                      marginTop: '9px',
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 1fr',
+                      gap: '8px',
+                    }}
+                  >
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      disabled={
+                        selectedIndex <= 0 || isSaving
+                      }
+                      onClick={handlePrevious}
+                      style={{
+                        minWidth: 0,
+                        width: '100%',
+                      }}
+                    >
+                      ← 이전
+                    </button>
+
+                    <button
+                      type="button"
+                      className="primary-button"
+                      disabled={isSaving}
+                      onClick={handleNext}
+                      style={{
+                        minWidth: 0,
+                        width: '100%',
+                      }}
+                    >
+                      {selectedIndex === qa.items.length - 1
+                        ? '저장'
+                        : '다음 →'}
+                    </button>
+                  </div>
+
+                  {errorMessage && (
+                    <div
+                      className="login-error execution-error"
+                      style={{
+                        marginTop: '10px',
+                      }}
+                    >
+                      {errorMessage}
+                    </div>
+                  )}
                 </div>
-              )}
-
-              <div className="execution-navigation">
-                <button
-                  type="button"
-                  className="secondary-button"
-                  disabled={
-                    selectedIndex <= 0 ||
-                    isSaving
-                  }
-                  onClick={handlePrevious}
-                >
-                  ← 이전
-                </button>
-
-                <span>
-                  {isSaving
-                    ? '저장 중...'
-                    : isDirty
-                      ? '변경사항 있음'
-                      : '저장됨'}
-                </span>
-
-                <button
-                  type="button"
-                  className="primary-button"
-                  disabled={isSaving}
-                  onClick={handleNext}
-                >
-                  {selectedIndex ===
-                  qa.items.length - 1
-                    ? '저장'
-                    : '다음 →'}
-                </button>
-              </div>
-            </section>
+              </aside>
+            </>
           )}
         </section>
       )}

@@ -114,6 +114,20 @@ CREATE TABLE test_items (
 ALTER SEQUENCE test_item_tc_no_seq
   OWNED BY test_items.tc_no;
 
+
+CREATE TABLE build_histories (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id uuid NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  version varchar(150) NOT NULL,
+  delivered_at date NOT NULL,
+  change_summary text NOT NULL,
+  qa_notes text,
+  created_by uuid NOT NULL REFERENCES users(id),
+  updated_by uuid NOT NULL REFERENCES users(id),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
 CREATE TABLE inspections (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
 
@@ -205,6 +219,10 @@ CREATE INDEX idx_categories_parent_sort
 
 CREATE INDEX idx_test_items_category_sort
   ON test_items(category_id, sort_order);
+
+
+CREATE INDEX idx_build_histories_project_delivered
+  ON build_histories(project_id, delivered_at DESC, created_at DESC);
 
 CREATE INDEX idx_inspections_project_created
   ON inspections(project_id, created_at DESC);
