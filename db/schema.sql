@@ -122,10 +122,41 @@ CREATE TABLE build_histories (
   delivered_at date NOT NULL,
   change_summary text NOT NULL,
   qa_notes text,
+  source_type varchar(30) NOT NULL DEFAULT 'MANUAL',
+  source_branch varchar(255),
+  risk_level varchar(20),
+  regression_required boolean,
+  additional_test_required boolean,
+  review_status varchar(20) NOT NULL DEFAULT 'DRAFT',
+  reviewed_by uuid REFERENCES users(id),
+  reviewed_at timestamptz,
   created_by uuid NOT NULL REFERENCES users(id),
   updated_by uuid NOT NULL REFERENCES users(id),
   created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT chk_build_histories_source_type
+    CHECK (source_type IN ('MANUAL', 'VCS', 'BUILD_SYSTEM', 'ISSUE_TRACKER')),
+  CONSTRAINT chk_build_histories_risk_level
+    CHECK (
+      risk_level IS NULL
+      OR risk_level IN ('UNASSESSED', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL')
+    ),
+  CONSTRAINT chk_build_histories_review_status
+    CHECK (review_status IN ('DRAFT', 'REVIEWED')),
+  CONSTRAINT chk_build_histories_review_audit
+    CHECK (
+      (
+        review_status = 'DRAFT'
+        AND reviewed_by IS NULL
+        AND reviewed_at IS NULL
+      )
+      OR
+      (
+        review_status = 'REVIEWED'
+        AND reviewed_by IS NOT NULL
+        AND reviewed_at IS NOT NULL
+      )
+    )
 );
 
 CREATE TABLE inspections (
@@ -146,6 +177,25 @@ CREATE TABLE inspections (
   created_at timestamptz NOT NULL DEFAULT now(),
 
   updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE build_history_inspections (
+  build_history_id uuid NOT NULL
+    REFERENCES build_histories(id) ON DELETE CASCADE,
+  inspection_id uuid NOT NULL
+    REFERENCES inspections(id) ON DELETE RESTRICT,
+  linked_by uuid NOT NULL
+    REFERENCES users(id),
+  linked_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (build_history_id, inspection_id)
+);
+
+CREATE TABLE build_history_impacts (
+  build_history_id uuid NOT NULL
+    REFERENCES build_histories(id) ON DELETE CASCADE,
+  impact_area varchar(100) NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (build_history_id, impact_area)
 );
 
 -- 검사 생성 시 원본 TC를 snapshot으로 복제해 과거 결과가 관리 항목 수정의 영향을 받지 않게 함
@@ -223,6 +273,18 @@ CREATE INDEX idx_test_items_category_sort
 
 CREATE INDEX idx_build_histories_project_delivered
   ON build_histories(project_id, delivered_at DESC, created_at DESC);
+
+CREATE INDEX idx_build_histories_project_review_delivered
+  ON build_histories(project_id, review_status, delivered_at DESC);
+
+CREATE INDEX idx_build_histories_project_risk_delivered
+  ON build_histories(project_id, risk_level, delivered_at DESC);
+
+CREATE INDEX idx_build_history_inspections_inspection
+  ON build_history_inspections(inspection_id);
+
+CREATE INDEX idx_build_history_impacts_impact_area
+  ON build_history_impacts(impact_area);
 
 CREATE INDEX idx_inspections_project_created
   ON inspections(project_id, created_at DESC);

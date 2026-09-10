@@ -1152,7 +1152,7 @@ export default function InspectionExecutionPage() {
             disabled={isLeaving}
             onClick={() =>
               handleNavigate(
-                `/projects/${qa.inspection.project_id}`,
+                `/projects/${qa.inspection.project_id}?view=builds`,
               )
             }
           >

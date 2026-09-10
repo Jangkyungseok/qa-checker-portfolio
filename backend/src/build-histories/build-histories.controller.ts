@@ -15,6 +15,7 @@ import { Roles } from '../common/roles.decorator';
 import { RolesGuard } from '../common/roles.guard';
 import { BuildHistoriesService } from './build-histories.service';
 import { CreateBuildHistoryDto } from './dto/create-build-history.dto';
+import { ReviewBuildHistoryDto } from './dto/review-build-history.dto';
 import { UpdateBuildHistoryDto } from './dto/update-build-history.dto';
 
 @Controller('build-histories')
@@ -49,5 +50,15 @@ export class BuildHistoriesController {
     @CurrentUser() user: AuthUser,
   ) {
     return this.buildHistories.update(id, dto, user.id);
+  }
+
+  @Patch(':id/review')
+  @Roles('LEADER', 'ADMIN')
+  review(
+    @Param('id') id: string,
+    @Body() dto: ReviewBuildHistoryDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.buildHistories.review(id, dto.reviewed, user.id);
   }
 }

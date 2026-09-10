@@ -59,6 +59,17 @@ interface BuildHistory {
   delivered_at: string;
   change_summary: string;
   qa_notes: string | null;
+  source_type?: SourceType;
+  source_branch?: string | null;
+  risk_level?: RiskLevel | null;
+  regression_required?: boolean | null;
+  additional_test_required?: boolean | null;
+  review_status?: 'DRAFT' | 'REVIEWED';
+  reviewed_by?: string | null;
+  reviewed_by_name?: string | null;
+  reviewed_at?: string | null;
+  inspection_ids?: string[];
+  impact_areas?: ImpactArea[];
   created_by: string;
   created_by_name: string;
   updated_by: string;
@@ -67,10 +78,51 @@ interface BuildHistory {
   updated_at: string;
 }
 
+const SOURCE_TYPES = ['MANUAL', 'VCS', 'BUILD_SYSTEM', 'ISSUE_TRACKER'] as const;
+const RISK_LEVELS = ['UNASSESSED', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] as const;
+const IMPACT_AREAS = [
+  'ACCOUNT',
+  'PAYMENT',
+  'NETWORK',
+  'UI',
+  'DATA',
+  'GAMEPLAY',
+  'SERVER',
+  'SDK',
+  'PERFORMANCE',
+] as const;
+
+type SourceType = (typeof SOURCE_TYPES)[number];
+type RiskLevel = (typeof RISK_LEVELS)[number];
+type ImpactArea = (typeof IMPACT_AREAS)[number];
+type RequirementChoice = '' | 'true' | 'false';
+
+interface HistoryFormValues {
+  version: string;
+  deliveredAt: string;
+  changeSummary: string;
+  qaNotes: string;
+  sourceType: SourceType;
+  sourceBranch: string;
+  riskLevel: RiskLevel | '';
+  regressionRequired: RequirementChoice;
+  additionalTestRequired: RequirementChoice;
+  impactAreas: ImpactArea[];
+  inspectionIds: string[];
+}
+
 function inspectionTypeLabel(type: Inspection['inspection_type']) {
   if (type === 'NEW') return '신규';
   if (type === 'RESUBMISSION') return '재납품';
   return '개발 검수';
+}
+
+function riskLevelLabel(level: RiskLevel | null | undefined) {
+  return level === 'UNASSESSED' || !level ? '미평가' : level;
+}
+
+function reviewStatusLabel(status: BuildHistory['review_status']) {
+  return status === 'REVIEWED' ? '검토 완료' : '검토 전';
 }
 
 function dateInputValue(value: string) {
@@ -116,7 +168,17 @@ export default function ProjectWorkspacePage() {
   const [historyDeliveredAt, setHistoryDeliveredAt] = useState('');
   const [historyChangeSummary, setHistoryChangeSummary] = useState('');
   const [historyQaNotes, setHistoryQaNotes] = useState('');
+  const [historySourceType, setHistorySourceType] = useState<SourceType>('MANUAL');
+  const [historySourceBranch, setHistorySourceBranch] = useState('');
+  const [historyRiskLevel, setHistoryRiskLevel] = useState<RiskLevel | ''>('');
+  const [historyRegressionRequired, setHistoryRegressionRequired] =
+    useState<RequirementChoice>('');
+  const [historyAdditionalTestRequired, setHistoryAdditionalTestRequired] =
+    useState<RequirementChoice>('');
+  const [historyImpactAreas, setHistoryImpactAreas] = useState<ImpactArea[]>([]);
+  const [historyInspectionIds, setHistoryInspectionIds] = useState<string[]>([]);
   const [historySaving, setHistorySaving] = useState(false);
+  const [historyReviewSaving, setHistoryReviewSaving] = useState(false);
   const [historyError, setHistoryError] = useState('');
   const [historyFormInitial, setHistoryFormInitial] = useState('');
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
@@ -222,6 +284,13 @@ export default function ProjectWorkspacePage() {
     deliveredAt: historyDeliveredAt,
     changeSummary: historyChangeSummary,
     qaNotes: historyQaNotes,
+    sourceType: historySourceType,
+    sourceBranch: historySourceBranch,
+    riskLevel: historyRiskLevel,
+    regressionRequired: historyRegressionRequired,
+    additionalTestRequired: historyAdditionalTestRequired,
+    impactAreas: historyImpactAreas,
+    inspectionIds: historyInspectionIds,
   });
   const historyFormDirty =
     showHistoryForm && historyFormInitial !== '' && currentHistoryFormSnapshot !== historyFormInitial;
@@ -287,45 +356,86 @@ export default function ProjectWorkspacePage() {
     setHistoryDeliveredAt('');
     setHistoryChangeSummary('');
     setHistoryQaNotes('');
+    setHistorySourceType('MANUAL');
+    setHistorySourceBranch('');
+    setHistoryRiskLevel('');
+    setHistoryRegressionRequired('');
+    setHistoryAdditionalTestRequired('');
+    setHistoryImpactAreas([]);
+    setHistoryInspectionIds([]);
     setHistoryError('');
     setHistoryFormInitial('');
     setShowHistoryForm(false);
   }
 
-  function setHistoryFormBaseline(values: {
-    version: string;
-    deliveredAt: string;
-    changeSummary: string;
-    qaNotes: string;
-  }) {
+  function setHistoryFormBaseline(values: HistoryFormValues) {
     setHistoryFormInitial(JSON.stringify(values));
   }
 
   function startCreateHistory() {
     const deliveredAt = new Date().toISOString().slice(0, 10);
-    const values = { version: '', deliveredAt, changeSummary: '', qaNotes: '' };
+    const values: HistoryFormValues = {
+      version: '',
+      deliveredAt,
+      changeSummary: '',
+      qaNotes: '',
+      sourceType: 'MANUAL',
+      sourceBranch: '',
+      riskLevel: '',
+      regressionRequired: '',
+      additionalTestRequired: '',
+      impactAreas: [],
+      inspectionIds: [],
+    };
     setEditingHistoryId(null);
     setHistoryVersion(values.version);
     setHistoryDeliveredAt(values.deliveredAt);
     setHistoryChangeSummary(values.changeSummary);
     setHistoryQaNotes(values.qaNotes);
+    setHistorySourceType(values.sourceType);
+    setHistorySourceBranch(values.sourceBranch);
+    setHistoryRiskLevel(values.riskLevel);
+    setHistoryRegressionRequired(values.regressionRequired);
+    setHistoryAdditionalTestRequired(values.additionalTestRequired);
+    setHistoryImpactAreas(values.impactAreas);
+    setHistoryInspectionIds(values.inspectionIds);
     setHistoryError('');
     setHistoryFormBaseline(values);
     setShowHistoryForm(true);
   }
 
   function startEditHistory(history: BuildHistory) {
-    const values = {
+    const values: HistoryFormValues = {
       version: history.version,
       deliveredAt: dateInputValue(history.delivered_at),
       changeSummary: history.change_summary,
       qaNotes: history.qa_notes ?? '',
+      sourceType: history.source_type ?? 'MANUAL',
+      sourceBranch: history.source_branch ?? '',
+      riskLevel: history.risk_level ?? '',
+      regressionRequired:
+        history.regression_required == null
+          ? ''
+          : String(history.regression_required) as RequirementChoice,
+      additionalTestRequired:
+        history.additional_test_required == null
+          ? ''
+          : String(history.additional_test_required) as RequirementChoice,
+      impactAreas: history.impact_areas ?? [],
+      inspectionIds: history.inspection_ids ?? [],
     };
     setEditingHistoryId(history.id);
     setHistoryVersion(values.version);
     setHistoryDeliveredAt(values.deliveredAt);
     setHistoryChangeSummary(values.changeSummary);
     setHistoryQaNotes(values.qaNotes);
+    setHistorySourceType(values.sourceType);
+    setHistorySourceBranch(values.sourceBranch);
+    setHistoryRiskLevel(values.riskLevel);
+    setHistoryRegressionRequired(values.regressionRequired);
+    setHistoryAdditionalTestRequired(values.additionalTestRequired);
+    setHistoryImpactAreas(values.impactAreas);
+    setHistoryInspectionIds(values.inspectionIds);
     setHistoryError('');
     setHistoryFormBaseline(values);
     setShowHistoryForm(true);
@@ -364,6 +474,21 @@ export default function ProjectWorkspacePage() {
     setHistoryError('');
 
     try {
+      const extendedFields = {
+        sourceType: historySourceType,
+        sourceBranch: historySourceBranch,
+        riskLevel: historyRiskLevel || null,
+        regressionRequired:
+          historyRegressionRequired === ''
+            ? null
+            : historyRegressionRequired === 'true',
+        additionalTestRequired:
+          historyAdditionalTestRequired === ''
+            ? null
+            : historyAdditionalTestRequired === 'true',
+        inspectionIds: historyInspectionIds,
+        impactAreas: historyImpactAreas,
+      };
       const response = await fetch(
         editingHistoryId
           ? `${API_BASE_URL}/build-histories/${editingHistoryId}`
@@ -381,6 +506,7 @@ export default function ProjectWorkspacePage() {
                   deliveredAt: historyDeliveredAt,
                   changeSummary: historyChangeSummary,
                   qaNotes: historyQaNotes,
+                  ...extendedFields,
                 }
               : {
                   projectId,
@@ -388,6 +514,7 @@ export default function ProjectWorkspacePage() {
                   deliveredAt: historyDeliveredAt,
                   changeSummary: historyChangeSummary,
                   qaNotes: historyQaNotes,
+                  ...extendedFields,
                 },
           ),
         },
@@ -416,6 +543,45 @@ export default function ProjectWorkspacePage() {
     const saved = await saveHistory();
     if (saved) {
       router.push(`/projects/${projectId}?view=history&historyId=${saved.id}`);
+    }
+  }
+
+  async function setHistoryReviewed(reviewed: boolean) {
+    if (!selectedHistory || !canManage) return;
+
+    const token = localStorage.getItem('qa_checker_token');
+    if (!token) {
+      router.replace('/');
+      return;
+    }
+
+    setHistoryReviewSaving(true);
+    setHistoryError('');
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/build-histories/${selectedHistory.id}/review`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ reviewed }),
+        },
+      );
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.message ?? 'Review 상태를 변경하지 못했습니다.');
+      }
+      await loadData();
+    } catch (error) {
+      setHistoryError(
+        error instanceof Error
+          ? error.message
+          : 'Review 상태 변경 중 오류가 발생했습니다.',
+      );
+    } finally {
+      setHistoryReviewSaving(false);
     }
   }
 
@@ -618,7 +784,7 @@ export default function ProjectWorkspacePage() {
                   <h2>{selectedHistory ? `Build v${selectedHistory.version}` : '빌드 히스토리'}</h2>
                   <p>
                     {selectedHistory
-                      ? '전달받은 빌드의 변경 내역과 QA 참고사항을 확인합니다.'
+                      ? '전달받은 빌드의 변경 내역과 QA 검토 내용을 확인합니다.'
                       : '개발팀에서 전달받은 빌드 버전과 변경 내역을 프로젝트별로 누적 관리합니다.'}
                   </p>
                 </div>
@@ -652,6 +818,7 @@ export default function ProjectWorkspacePage() {
               {showHistoryForm && canManage ? (
                 <form className="build-history-form build-history-form-standalone" onSubmit={handleSaveHistory}>
                   <div className="build-history-form-grid">
+                    <h3 className="build-history-form-section">1. Build 기본정보</h3>
                     <label>
                       <span>빌드 버전</span>
                       <input value={historyVersion} onChange={(event) => setHistoryVersion(event.target.value)} placeholder="예: 1.2.7" maxLength={150} required />
@@ -660,14 +827,90 @@ export default function ProjectWorkspacePage() {
                       <span>빌드 전달 일자</span>
                       <input type="date" value={historyDeliveredAt} onChange={(event) => setHistoryDeliveredAt(event.target.value)} required />
                     </label>
+                    <label>
+                      <span>소스 유형</span>
+                      <select value={historySourceType} onChange={(event) => setHistorySourceType(event.target.value as SourceType)}>
+                        {SOURCE_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
+                      </select>
+                    </label>
+                    <label>
+                      <span>브랜치 <small>선택</small></span>
+                      <input value={historySourceBranch} onChange={(event) => setHistorySourceBranch(event.target.value)} maxLength={255} placeholder="예: release/1.2.7" />
+                    </label>
+                    <h3 className="build-history-form-section">2. 개발 변경사항</h3>
                     <label className="wide">
                       <span>빌드 변경 내역</span>
                       <textarea value={historyChangeSummary} onChange={(event) => setHistoryChangeSummary(event.target.value)} placeholder={`예)\n- 신규 캐릭터 추가\n- 결제 UI 수정\n- 길드전 매칭 로직 변경`} rows={7} required />
                     </label>
+                    <h3 className="build-history-form-section">3. QA Review</h3>
                     <label className="wide">
-                      <span>QA 참고사항 <small>선택</small></span>
+                      <span>QA 검토 내용 <small>선택</small></span>
                       <textarea value={historyQaNotes} onChange={(event) => setHistoryQaNotes(event.target.value)} placeholder={`예)\n- 기존 계정 업데이트 검증 필요\n- 결제 회귀 테스트 필요`} rows={4} />
                     </label>
+                    <h3 className="build-history-form-section">4. Impact / Risk</h3>
+                    <label className="wide">
+                      <span>위험도 <small>선택</small></span>
+                      <select value={historyRiskLevel} onChange={(event) => setHistoryRiskLevel(event.target.value as RiskLevel | '')}>
+                        <option value="">미평가</option>
+                        {RISK_LEVELS.map((level) => <option key={level} value={level}>{riskLevelLabel(level)}</option>)}
+                      </select>
+                    </label>
+                    <fieldset className="build-history-choice-group wide">
+                      <legend>영향 영역 <small>복수 선택</small></legend>
+                      <div className="build-history-chip-grid">
+                        {IMPACT_AREAS.map((area) => (
+                          <label key={area} className={historyImpactAreas.includes(area) ? 'selected' : ''}>
+                            <input
+                              type="checkbox"
+                              checked={historyImpactAreas.includes(area)}
+                              onChange={() => setHistoryImpactAreas((current) =>
+                                current.includes(area)
+                                  ? current.filter((item) => item !== area)
+                                  : [...current, area]
+                              )}
+                            />
+                            <span>{area}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </fieldset>
+                    <h3 className="build-history-form-section">5. Regression / Additional Test</h3>
+                    <label>
+                      <span>회귀 테스트 필요</span>
+                      <select value={historyRegressionRequired} onChange={(event) => setHistoryRegressionRequired(event.target.value as RequirementChoice)}>
+                        <option value="">미평가</option><option value="true">필요</option><option value="false">불필요</option>
+                      </select>
+                    </label>
+                    <label>
+                      <span>추가 테스트 필요</span>
+                      <select value={historyAdditionalTestRequired} onChange={(event) => setHistoryAdditionalTestRequired(event.target.value as RequirementChoice)}>
+                        <option value="">미평가</option><option value="true">필요</option><option value="false">불필요</option>
+                      </select>
+                    </label>
+                    <h3 className="build-history-form-section">6. 연결 Inspection</h3>
+                    <fieldset className="build-history-choice-group wide">
+                      <legend>Inspection <small>복수 선택</small></legend>
+                      {inspections.length === 0 ? (
+                        <p className="build-history-choice-empty">연결할 수 있는 Build Inspection이 없습니다.</p>
+                      ) : (
+                        <div className="build-history-inspection-grid">
+                          {inspections.map((inspection) => (
+                            <label key={inspection.id} className={historyInspectionIds.includes(inspection.id) ? 'selected' : ''}>
+                              <input
+                                type="checkbox"
+                                checked={historyInspectionIds.includes(inspection.id)}
+                                onChange={() => setHistoryInspectionIds((current) =>
+                                  current.includes(inspection.id)
+                                    ? current.filter((id) => id !== inspection.id)
+                                    : [...current, inspection.id]
+                                )}
+                              />
+                              <span><strong>Build v{inspection.version}</strong><small>{inspection.platform} · {inspectionTypeLabel(inspection.inspection_type)} · {formatDateOnly(inspection.created_at)}</small></span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </fieldset>
                   </div>
                   {historyError && <div className="dashboard-error">{historyError}</div>}
                   <div className="build-history-form-actions">
@@ -681,6 +924,8 @@ export default function ProjectWorkspacePage() {
                 <div className="build-history-detail-page">
                   <dl className="build-history-meta build-history-meta-detail">
                     <div><dt>전달 일자</dt><dd>{formatBuildDate(selectedHistory.delivered_at)}</dd></div>
+                    <div><dt>소스 유형</dt><dd>{selectedHistory.source_type ?? 'MANUAL'}</dd></div>
+                    <div><dt>브랜치</dt><dd>{selectedHistory.source_branch || '-'}</dd></div>
                     <div><dt>작성자</dt><dd>{selectedHistory.created_by_name}</dd></div>
                     <div><dt>최근 수정</dt><dd>{selectedHistory.updated_by_name} · {new Date(selectedHistory.updated_at).toLocaleString('ko-KR')}</dd></div>
                   </dl>
@@ -690,9 +935,79 @@ export default function ProjectWorkspacePage() {
                     <div>{selectedHistory.change_summary}</div>
                   </section>
                   <section className="build-history-text-section">
-                    <h4>QA 참고사항</h4>
-                    <div className={!selectedHistory.qa_notes ? 'empty' : ''}>{selectedHistory.qa_notes || '등록된 QA 참고사항이 없습니다.'}</div>
+                    <h4>QA 검토 내용</h4>
+                    <div className={!selectedHistory.qa_notes ? 'empty' : ''}>{selectedHistory.qa_notes || '등록된 QA 검토 내용이 없습니다.'}</div>
                   </section>
+
+                  <section className="build-history-summary-section">
+                    <h4>Impact / Risk</h4>
+                    <div className="build-history-summary-grid">
+                      <div>
+                        <span>위험도</span>
+                        <strong>{riskLevelLabel(selectedHistory.risk_level)}</strong>
+                      </div>
+                      <div className="wide">
+                        <span>영향 영역</span>
+                        <div className="build-history-detail-chips">
+                          {(selectedHistory.impact_areas ?? []).length > 0
+                            ? selectedHistory.impact_areas?.map((area) => <em key={area}>{area}</em>)
+                            : <small>선택된 영향 영역이 없습니다.</small>}
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="build-history-summary-section">
+                    <h4>Regression / Additional Test</h4>
+                    <div className="build-history-summary-grid">
+                      <div><span>회귀 테스트 필요</span><strong>{selectedHistory.regression_required == null ? '미평가' : selectedHistory.regression_required ? '필요' : '불필요'}</strong></div>
+                      <div><span>추가 테스트 필요</span><strong>{selectedHistory.additional_test_required == null ? '미평가' : selectedHistory.additional_test_required ? '필요' : '불필요'}</strong></div>
+                    </div>
+                  </section>
+
+                  <section className="build-history-summary-section">
+                    <h4>연결 Inspection</h4>
+                    <div className="build-history-linked-list">
+                      {(selectedHistory.inspection_ids ?? []).length > 0
+                        ? (selectedHistory.inspection_ids ?? []).map((inspectionId) => {
+                            const inspection = inspections.find((item) => item.id === inspectionId);
+                            return (
+                              <button key={inspectionId} type="button" onClick={() => router.push(`/inspections/${inspectionId}`)}>
+                                <strong>{inspection ? `Build v${inspection.version}` : inspectionId}</strong>
+                                {inspection && <span>{inspection.platform} · {inspectionTypeLabel(inspection.inspection_type)} · {formatDateOnly(inspection.created_at)}</span>}
+                              </button>
+                            );
+                          })
+                        : <p>연결된 Build Inspection이 없습니다.</p>}
+                    </div>
+                  </section>
+
+                  <section className="build-history-review-section">
+                    <div>
+                      <span>Review 상태</span>
+                      <strong className={(selectedHistory.review_status ?? 'DRAFT') === 'REVIEWED' ? 'reviewed' : 'draft'}>
+                        {reviewStatusLabel(selectedHistory.review_status)}
+                      </strong>
+                      {(selectedHistory.review_status ?? 'DRAFT') === 'REVIEWED' && (
+                        <small>{selectedHistory.reviewed_by_name ?? '검토자'} · {selectedHistory.reviewed_at ? new Date(selectedHistory.reviewed_at).toLocaleString('ko-KR') : '-'}</small>
+                      )}
+                    </div>
+                    {canManage && (
+                      <button
+                        type="button"
+                        className={(selectedHistory.review_status ?? 'DRAFT') === 'REVIEWED' ? 'secondary-button' : 'primary-button'}
+                        disabled={historyReviewSaving}
+                        onClick={() => void setHistoryReviewed((selectedHistory.review_status ?? 'DRAFT') !== 'REVIEWED')}
+                      >
+                        {historyReviewSaving
+                          ? '처리 중...'
+                          : (selectedHistory.review_status ?? 'DRAFT') === 'REVIEWED'
+                            ? 'Review 해제'
+                            : 'Review 확정'}
+                      </button>
+                    )}
+                  </section>
+                  {historyError && <div className="dashboard-error">{historyError}</div>}
 
                   <div className="build-history-adjacent">
                     <div className="build-history-adjacent-slot">
