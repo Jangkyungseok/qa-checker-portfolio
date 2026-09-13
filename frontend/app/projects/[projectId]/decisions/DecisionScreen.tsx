@@ -203,7 +203,7 @@ function DecisionList({ projectId, canManage, request }: { projectId: string; ca
     {!creating && <><div className={styles.filters}>
       <label>상태<select value={status} onChange={event => setStatus(event.target.value)}><option value="">전체 상태</option><Options values={STATUSES} /></select></label>
       <label>위험도<select value={risk} onChange={event => setRisk(event.target.value)}><option value="">전체 위험도</option><Options values={RISKS} /></select></label>
-      <label>이슈 유형<select value={type} onChange={event => setType(event.target.value)}><option value="">전체 유형</option><Options values={TYPES} /></select></label>
+      <label>이슈 유형<select value={type} onChange={event => setType(event.target.value)}><option value="">전체 유형</option><Options values={NEW_TYPES} /></select></label>
       <button className="secondary-button" onClick={() => { setStatus(''); setRisk(''); setType(''); }}>필터 초기화</button>
     </div>
     {loading ? <p className={styles.empty} role="status">목록을 불러오는 중...</p>
