@@ -7,6 +7,7 @@ import { InspectionsModule } from './inspections/inspections.module';
 import { ProjectsModule } from './projects/projects.module';
 import { QaExecutionModule } from './qa-execution/qa-execution.module';
 import { ReportsModule } from './reports/reports.module';
+import { QaDecisionsModule } from './qa-decisions/qa-decisions.module';
 import { TestItemsModule } from './test-items/test-items.module';
 import { UsersModule } from './users/users.module';
 
@@ -22,6 +23,7 @@ import { UsersModule } from './users/users.module';
     TestItemsModule,
     QaExecutionModule,
     ReportsModule,
+    QaDecisionsModule,
   ],
 })
 export class AppModule {}

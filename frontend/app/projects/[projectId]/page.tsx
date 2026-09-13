@@ -159,6 +159,8 @@ export default function ProjectWorkspacePage() {
   const [testDevices, setTestDevices] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState('');
+  const [deletingInspectionId, setDeletingInspectionId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState('');
   const [reportSearch, setReportSearch] = useState('');
   const [buildHistories, setBuildHistories] = useState<BuildHistory[]>([]);
   const [historySearch, setHistorySearch] = useState('');
@@ -546,6 +548,28 @@ export default function ProjectWorkspacePage() {
     }
   }
 
+  async function handleDeleteInspection(inspection: Inspection) {
+    if (!canManage || deletingInspectionId) return;
+    if (!window.confirm(`Build v${inspection.version} 검수를 삭제할까요? 검수 결과와 기록도 함께 삭제됩니다.`)) return;
+    const token = localStorage.getItem('qa_checker_token');
+    if (!token) { router.replace('/'); return; }
+    setDeleteError('');
+    setDeletingInspectionId(inspection.id);
+    try {
+      const response = await fetch(`${API_BASE_URL}/inspections/${inspection.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.message ?? '빌드 검수를 삭제하지 못했습니다.');
+      setInspections((current) => current.filter((item) => item.id !== inspection.id));
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : '빌드 검수를 삭제하지 못했습니다.');
+    } finally {
+      setDeletingInspectionId(null);
+    }
+  }
+
   async function setHistoryReviewed(reviewed: boolean) {
     if (!selectedHistory || !canManage) return;
 
@@ -697,6 +721,19 @@ export default function ProjectWorkspacePage() {
                     <div>
                       <h2>결과 보기</h2>
                       <p>프로젝트와 빌드 기준으로 검수 결과와 리포트를 확인합니다.</p>
+                    </div>
+                    <small className="workspace-status live-status">사용 가능</small>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="workspace-module-card live"
+                    onClick={() => requestNavigate(`/projects/${projectId}/decisions`)}
+                  >
+                    <span className="workspace-module-icon execution-icon"><UiIcon name="files" size={19} /></span>
+                    <div>
+                      <h2>이슈 이력</h2>
+                      <p>주요 이슈와 대응 사유, 결과를 남기고 확인합니다.</p>
                     </div>
                     <small className="workspace-status live-status">사용 가능</small>
                   </button>
@@ -1089,6 +1126,8 @@ export default function ProjectWorkspacePage() {
                 </form>
               )}
 
+              {deleteError && <div className="dashboard-error">{deleteError}</div>}
+
               <div className="workspace-build-list">
                 {inspections.length === 0 ? (
                   <div className="workspace-panel-empty">아직 생성된 빌드가 없습니다.</div>
@@ -1101,7 +1140,10 @@ export default function ProjectWorkspacePage() {
                       <div><strong>Build v{inspection.version}</strong><span>{inspection.platform === 'IOS' ? 'iOS' : 'Android'} · {inspectionTypeLabel(inspection.inspection_type)}</span></div>
                       <div className="workspace-build-progress"><strong>{tested}/{total}</strong><span>{percent}%</span></div>
                       <span>{formatDateOnly(inspection.created_at)}</span>
-                      <button type="button" onClick={() => router.push(`/inspections/${inspection.id}`)}>검수 실행 →</button>
+                      <div className="workspace-build-actions">
+                        <button type="button" onClick={() => router.push(`/inspections/${inspection.id}`)}>검수 실행 →</button>
+                        {user?.role === 'ADMIN' && <button type="button" className="workspace-build-delete" disabled={deletingInspectionId === inspection.id} onClick={() => void handleDeleteInspection(inspection)}>{deletingInspectionId === inspection.id ? '삭제 중...' : '삭제'}</button>}
+                      </div>
                     </article>
                   );
                 })}

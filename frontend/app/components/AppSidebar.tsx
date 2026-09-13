@@ -33,11 +33,13 @@ export default function AppSidebar({
   activeMenu,
   currentProjectId,
   onNavigate,
+  guardAction,
 }: {
   user: SidebarUser;
   activeMenu: ActiveMenu;
   currentProjectId?: string;
   onNavigate?: (href: string) => void;
+  guardAction?: (action: () => void) => void;
 }) {
   const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
@@ -220,7 +222,7 @@ export default function AppSidebar({
       </nav>
 
       <div className="sidebar-account">
-        <button type="button" className="sidebar-logout-button" onClick={handleLogout}>
+        <button type="button" className="sidebar-logout-button" onClick={() => guardAction ? guardAction(() => { void handleLogout(); }) : void handleLogout()}>
           로그아웃
         </button>
       </div>

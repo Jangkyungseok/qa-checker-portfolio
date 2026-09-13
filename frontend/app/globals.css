@@ -4201,6 +4201,30 @@ body {
   font-weight: 750;
 }
 
+.workspace-build-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.workspace-build-actions > button {
+  height: 34px;
+  padding: 0 11px;
+  border: 1px solid #b9d4ec;
+  border-radius: 8px;
+  background: #edf6ff;
+  color: #356f9f;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.workspace-build-actions .workspace-build-delete {
+  border-color: #f1c4c4;
+  background: #fff5f5;
+  color: #b55252;
+}
+
 /* Build History extended review fields */
 .build-history-form-section {
   grid-column: 1 / -1;
