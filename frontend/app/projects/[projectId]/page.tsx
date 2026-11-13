@@ -752,6 +752,15 @@ export default function ProjectWorkspacePage() {
                     </div>
                     <small className="workspace-status live-status">사용 가능</small>
                   </button>
+                  <button
+                    type="button"
+                    className="workspace-module-card live"
+                    onClick={() => requestNavigate(`/projects/${projectId}/issue-report`)}
+                  >
+                    <span className="workspace-module-icon issue-icon"><UiIcon name="issue" size={19} /></span>
+                    <div><h2>이슈 현황</h2><p>등록된 이슈의 진행 상태와 처리 현황을 확인합니다.</p></div>
+                    <small className="workspace-status live-status">사용 가능</small>
+                  </button>
                 </div>
               </section>
 

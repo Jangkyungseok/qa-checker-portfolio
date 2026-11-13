@@ -1,5 +1,9 @@
 # BTS 이슈 관리 — 외부 QA 대응용 MVP (2026-11-13)
 
+이슈 현황 화면/API의 후속 구현과 QA 결과 리포트 확장 설계는 [ISSUE_REPORT.md](ISSUE_REPORT.md)를 참고한다.
+2026-11-13 사용자 확인으로 production 0009~0012 적용/Storage 설정 및 기능 commit push가 완료됐다.
+아래 migration 적용 당시의 기록과 구분하며, 이슈 현황 작업에서는 production 변경을 하지 않는다.
+
 ## 범위
 
 사용자 메뉴는 **이슈 관리**, 내부 모듈/테이블/API는 `defects`다. 기존 **이슈 이력**

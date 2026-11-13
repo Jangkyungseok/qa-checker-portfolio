@@ -6,14 +6,17 @@ import { AuthGuard } from '../common/auth.guard';
 import { AuthUser } from '../common/auth-user';
 import { CurrentUser } from '../common/current-user.decorator';
 import { DefectsService } from './defects.service';
+import { DefectReportService } from './defect-report.service';
+import { DefectReportDto } from './dto/defect-report.dto';
 import { CommentDto, CreateDefectDto, DefectStatusDto, ListDefectsDto, UpdateCommentDto, UpdateDefectDto } from './dto/defect.dto';
 
 @Controller('defects')
 @UseGuards(AuthGuard)
 export class DefectsController {
-  constructor(private readonly defects: DefectsService, private readonly attachments: DefectAttachmentsService) {}
+  constructor(private readonly defects: DefectsService, private readonly attachments: DefectAttachmentsService, private readonly reports: DefectReportService) {}
   @Get() list(@Query() dto: ListDefectsDto, @CurrentUser() user: AuthUser) { return this.defects.list(dto,user); }
   @Get('attachment-policy') policy() { return EVIDENCE_POLICY; }
+  @Get('report') report(@Query() dto: DefectReportDto) { return this.reports.get(dto); }
   @Post() create(@Body() dto: CreateDefectDto, @CurrentUser() user: AuthUser) { return this.defects.create(dto,user); }
   @Get(':id') get(@Param('id',ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) { return this.defects.get(id,user); }
   @Patch(':id') update(@Param('id',ParseUUIDPipe) id: string,@Body() dto: UpdateDefectDto,@CurrentUser() user: AuthUser) { return this.defects.update(id,dto,user); }

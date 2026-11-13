@@ -133,10 +133,19 @@ Build History 목록/상세/생성/수정, 전달 버전, 변경 내용, 위험�
 별도 `defects` 모듈의 이슈 관리·발생 환경·연계 이슈·코멘트·활동 이력을 추가했다. 담당자 할당은 제외했다. 상세 범위와 배포 절차는
 `docs/BTS_MVP.md`를 참고한다. 신규 migration은 `db/0009_add_defects.sql`과
 `db/0010_expand_issue_workflow.sql`, `db/0011_simplify_issue_management.sql`,
-`db/0012_issue_evidence_and_rerequest.sql`이며 로컬에 적용했고 production에는 아직 적용하지 않았다. 기존 이슈 이력과 0006/0007/0008은 유지한다.
+`db/0012_issue_evidence_and_rerequest.sql`이며 로컬에 적용했다. 2026-11-13 사용자 확인으로 production 0009~0012 적용과 Storage 사전 설정 완료를 기록한다. 이번 이슈 현황 작업에서 production을 직접 변경하지 않았다. 기존 이슈 이력과 0006/0007/0008은 유지한다.
 프로젝트 멤버십은 사용자 결정으로 후속 단계에 보류했다. 승인된 계정은 현재 모든 프로젝트에
 접근할 수 있으며 내부/외부 테스트 계정을 구분하는 것만으로 데이터가 격리되지 않는다.
 실제 외부 고객 데이터 운영 전에는 프로젝트 멤버십과 Backend 접근 통제가 필수다.
 
 이슈 증빙 첨부는 별도 defect_attachments와 비공개 Supabase Storage를 사용한다. 로컬 파일 저장 모드도 제공하며 production에서는 사용할 수 없다.
 최종 확인 상태(수정 확인/SKIP 확인)는 재요청을 거쳐 대응 중으로 돌아간다. 상세 운영 조건과 Storage 배포 전 확인 항목은 BTS 문서를 따른다.
+
+## 10. 이슈 현황 (2026-11-13)
+
+프로젝트 Workspace의 이슈 현황은 `/projects/[projectId]/issue-report`이며 승인된 모든 역할이 조회한다.
+`GET /defects/report`가 등록일/빌드 기준 KPI, 처리율, 상태/우선순위/빈도, 재요청/SKIP,
+일별 추이 및 페이지별 잔여/재요청 목록을 집계한다. 한국시간 오늘 포함 기간이며 현재 상태를 보여준다.
+기존 defects/defect_activities만 사용하고 신규 migration은 없다. 기존 검수 Reports 모듈은 유지한다.
+정확한 기준과 향후 QA 결과 리포트 6개 영역의 데이터 재사용/수동 입력 구분은 `docs/ISSUE_REPORT.md`를 참고한다.
+시간 평균, 최종 리포트 UI, CSV/Excel/PDF, 출시 리스크/리드 의견 입력은 아직 미구현이다.
