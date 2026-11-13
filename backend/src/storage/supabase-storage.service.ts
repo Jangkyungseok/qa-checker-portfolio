@@ -1,5 +1,7 @@
 import {
   Injectable,
+  BadRequestException,
+  ServiceUnavailableException,
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
@@ -33,6 +35,16 @@ export class SupabaseStorageService {
         },
       },
     );
+  }
+
+  // Evidence must never be served from a public bucket. Existing TC/inspection calls are unchanged.
+  async assertPrivateEvidenceBucket(mime?:string,size?:number) {
+    const {data,error}=await this.client.storage.getBucket(this.bucket);
+    if(error||!data)throw new ServiceUnavailableException('증빙 저장소 설정을 확인할 수 없습니다. 관리자에게 문의해 주세요.');
+    if(data.public)throw new ServiceUnavailableException('증빙 자료에는 비공개 Storage 버킷이 필요합니다.');
+    if(size&&data.file_size_limit&&size>data.file_size_limit)throw new BadRequestException('Storage 버킷의 파일 크기 제한을 초과했습니다.');
+    const allowed=data.allowed_mime_types;
+    if(mime&&allowed?.length&&!allowed.some(type=>type===mime||type==='*/*'||(type.endsWith('/*')&&mime.startsWith(type.slice(0,-1)))))throw new BadRequestException('Storage 버킷에서 이 파일 형식을 허용하지 않습니다.');
   }
 
   async upload(

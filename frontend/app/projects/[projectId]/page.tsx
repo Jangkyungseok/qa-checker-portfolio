@@ -740,17 +740,17 @@ export default function ProjectWorkspacePage() {
 
                   <button
                     type="button"
-                    className="workspace-module-card planned"
+                    className="workspace-module-card live"
                     onClick={() =>
-                      requestNavigate(`/projects/${projectId}/planned/issues`)
+                      requestNavigate(`/projects/${projectId}/defects`)
                     }
                   >
                     <span className="workspace-module-icon issue-icon"><UiIcon name="issue" size={19} /></span>
                     <div>
-                      <h2>이슈 현황</h2>
-                      <p>프로젝트에서 발생한 이슈와 상태를 한 곳에서 확인합니다.</p>
+                      <h2>이슈 관리</h2>
+                      <p>발견된 이슈와 대응 진행 상황을 관리합니다.</p>
                     </div>
-                    <small className="workspace-status planned-status">구현 예정</small>
+                    <small className="workspace-status live-status">사용 가능</small>
                   </button>
                 </div>
               </section>

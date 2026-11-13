@@ -126,4 +126,17 @@ Build History 목록/상세/생성/수정, 전달 버전, 변경 내용, 위험�
 
 `.env`, `.env.local`, 비밀번호, DATABASE_URL의 실제 값, 세션 토큰, Supabase secret key 등 비밀값은 문서나 Git에 기록하지 않는다.
 실제 환경 설정 값은 승인된 로컬/배포 서비스 설정에서 관리한다.
-자동 생성 파일, 테스트 데이터, 작업 보조 파일은 기능 commit에 섞이지 않도록 확인한다. Architecture 문서는 현재 작성만 하고 commit하지 않는다.
+자동 생성 파일, 테스트 데이터, 작업 보조 파일은 기능 commit에 섞이지 않도록 확인한다. 문서 변경은 해당 기능 구현과 함께 검토한다.
+
+## 9. BTS 1차 MVP 추가 체크포인트 (2026-11-13)
+
+별도 `defects` 모듈의 이슈 관리·발생 환경·연계 이슈·코멘트·활동 이력을 추가했다. 담당자 할당은 제외했다. 상세 범위와 배포 절차는
+`docs/BTS_MVP.md`를 참고한다. 신규 migration은 `db/0009_add_defects.sql`과
+`db/0010_expand_issue_workflow.sql`, `db/0011_simplify_issue_management.sql`,
+`db/0012_issue_evidence_and_rerequest.sql`이며 로컬에 적용했고 production에는 아직 적용하지 않았다. 기존 이슈 이력과 0006/0007/0008은 유지한다.
+프로젝트 멤버십은 사용자 결정으로 후속 단계에 보류했다. 승인된 계정은 현재 모든 프로젝트에
+접근할 수 있으며 내부/외부 테스트 계정을 구분하는 것만으로 데이터가 격리되지 않는다.
+실제 외부 고객 데이터 운영 전에는 프로젝트 멤버십과 Backend 접근 통제가 필수다.
+
+이슈 증빙 첨부는 별도 defect_attachments와 비공개 Supabase Storage를 사용한다. 로컬 파일 저장 모드도 제공하며 production에서는 사용할 수 없다.
+최종 확인 상태(수정 확인/SKIP 확인)는 재요청을 거쳐 대응 중으로 돌아간다. 상세 운영 조건과 Storage 배포 전 확인 항목은 BTS 문서를 따른다.

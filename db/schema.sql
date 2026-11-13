@@ -382,3 +382,92 @@ CREATE INDEX idx_result_history_item_time
     inspection_item_id,
     changed_at DESC
   );
+
+-- BTS: project membership is deferred; approved users retain existing project access.
+CREATE TABLE defects (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  defect_no bigint GENERATED ALWAYS AS IDENTITY UNIQUE,
+  project_id uuid NOT NULL REFERENCES projects(id),
+  title varchar(200) NOT NULL CHECK (length(trim(title)) > 0),
+  description text NOT NULL,
+  steps_to_reproduce text NOT NULL,
+  expected_result text,
+  actual_result text,
+  fix_direction text CHECK (fix_direction IS NULL OR length(trim(fix_direction)) BETWEEN 1 AND 10000),
+  reproducibility varchar(30) NOT NULL CHECK (reproducibility IN ('PERCENT_100','PERCENT_70','PERCENT_50','PERCENT_30','PERCENT_1','ALWAYS','SOMETIMES','RANDOM','NOT_TESTED','UNABLE_TO_REPRODUCE','NOT_APPLICABLE')),
+  severity varchar(20) CHECK (severity IN ('BLOCKER','CRITICAL','MAJOR','MINOR','TRIVIAL')),
+  priority varchar(10) NOT NULL CHECK (priority IN ('LOW','NORMAL','HIGH','URGENT','IMMEDIATE')),
+  status varchar(30) NOT NULL DEFAULT 'NEW'
+    CHECK (status IN ('NEW','REQUESTED','RE_REQUESTED','IN_PROGRESS','RESPONDED','VERIFIED','SKIP_REQUESTED','SKIP_CONFIRMED')),
+  build_version varchar(200),
+  device_os varchar(500) NOT NULL DEFAULT '공통',
+  related_defect_id uuid REFERENCES defects(id) ON DELETE SET NULL,
+  legacy_status varchar(30),
+  CONSTRAINT defects_related_not_self CHECK (related_defect_id IS NULL OR related_defect_id <> id),
+  assignee_id uuid REFERENCES users(id),
+  build_history_id uuid REFERENCES build_histories(id) ON DELETE SET NULL,
+  inspection_id uuid REFERENCES inspections(id) ON DELETE SET NULL,
+  created_by uuid NOT NULL REFERENCES users(id),
+  updated_by uuid NOT NULL REFERENCES users(id),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  closed_by uuid REFERENCES users(id),
+  closed_at timestamptz,
+  resolution varchar(30) CHECK (resolution IN ('FIXED','UNABLE_TO_REPRODUCE','DUPLICATE','NOT_FIXABLE','WONT_FIX','NOT_AN_ISSUE')),
+  version integer NOT NULL DEFAULT 1 CHECK (version > 0),
+  CHECK ((status IN ('VERIFIED','SKIP_CONFIRMED') AND closed_by IS NOT NULL AND closed_at IS NOT NULL)
+    OR (status NOT IN ('VERIFIED','SKIP_CONFIRMED') AND closed_by IS NULL AND closed_at IS NULL))
+);
+CREATE INDEX idx_defects_project_created ON defects(project_id, created_at DESC, id);
+CREATE INDEX idx_defects_project_status ON defects(project_id, status);
+CREATE INDEX idx_defects_project_assignee ON defects(project_id, assignee_id);
+
+CREATE TABLE defect_comments (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  defect_id uuid NOT NULL REFERENCES defects(id),
+  author_id uuid NOT NULL REFERENCES users(id),
+  body text NOT NULL CHECK (length(trim(body)) BETWEEN 1 AND 5000),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  version integer NOT NULL DEFAULT 1,
+  deleted_at timestamptz,
+  deleted_by uuid REFERENCES users(id),
+  CHECK ((deleted_at IS NULL) = (deleted_by IS NULL))
+);
+CREATE INDEX idx_defect_comments_time ON defect_comments(defect_id, created_at, id);
+
+CREATE TABLE defect_activities (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  defect_id uuid NOT NULL REFERENCES defects(id),
+  actor_id uuid NOT NULL REFERENCES users(id),
+  event_type varchar(30) NOT NULL CHECK (event_type IN (
+    'CREATED','STATUS_CHANGED','ASSIGNEE_CHANGED','SEVERITY_CHANGED','PRIORITY_CHANGED',
+    'CONTENT_UPDATED','COMMENT_CREATED','COMMENT_UPDATED','COMMENT_DELETED','ATTACHMENT_ADDED','ATTACHMENT_REMOVED')),
+  changes jsonb NOT NULL DEFAULT '{}'::jsonb,
+  comment_id uuid REFERENCES defect_comments(id),
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_defect_activities_time ON defect_activities(defect_id, created_at, id);
+
+CREATE INDEX idx_defects_project_priority ON defects(project_id,priority);
+CREATE INDEX idx_defects_project_updated ON defects(project_id,updated_at DESC,id);
+
+CREATE INDEX idx_defects_related ON defects(related_defect_id);
+CREATE INDEX idx_defects_project_frequency ON defects(project_id,reproducibility);
+
+CREATE TABLE defect_attachments (
+  id uuid PRIMARY KEY,
+  defect_id uuid NOT NULL REFERENCES defects(id),
+  original_filename varchar(255) NOT NULL,
+  storage_path text NOT NULL UNIQUE,
+  mime_type varchar(100) NOT NULL CHECK (mime_type IN ('image/png','image/jpeg','image/webp','application/pdf','video/mp4','video/quicktime')),
+  size_bytes bigint NOT NULL CHECK (size_bytes > 0 AND size_bytes <= 104857600),
+  uploaded_by uuid NOT NULL REFERENCES users(id),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  deleted_at timestamptz,
+  deleted_by uuid REFERENCES users(id),
+  CHECK ((deleted_at IS NULL) = (deleted_by IS NULL))
+);
+CREATE INDEX idx_defect_attachments_issue ON defect_attachments(defect_id,created_at,id) WHERE deleted_at IS NULL;
+
+CREATE INDEX idx_defect_activities_event_time ON defect_activities(event_type,created_at,defect_id);
