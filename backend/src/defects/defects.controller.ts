@@ -8,15 +8,25 @@ import { CurrentUser } from '../common/current-user.decorator';
 import { DefectsService } from './defects.service';
 import { DefectReportService } from './defect-report.service';
 import { DefectReportDto } from './dto/defect-report.dto';
+import { DefectExportDto } from './dto/defect-export.dto';
+import { DefectExportService } from './defect-export.service';
 import { CommentDto, CreateDefectDto, DefectStatusDto, ListDefectsDto, UpdateCommentDto, UpdateDefectDto } from './dto/defect.dto';
 
 @Controller('defects')
 @UseGuards(AuthGuard)
 export class DefectsController {
-  constructor(private readonly defects: DefectsService, private readonly attachments: DefectAttachmentsService, private readonly reports: DefectReportService) {}
+  constructor(private readonly defects: DefectsService, private readonly attachments: DefectAttachmentsService, private readonly reports: DefectReportService, private readonly exports: DefectExportService) {}
   @Get() list(@Query() dto: ListDefectsDto, @CurrentUser() user: AuthUser) { return this.defects.list(dto,user); }
   @Get('attachment-policy') policy() { return EVIDENCE_POLICY; }
   @Get('report') report(@Query() dto: DefectReportDto) { return this.reports.get(dto); }
+  @Get('report/export')
+  @Header('Cache-Control', 'private, no-store')
+  @Header('Access-Control-Expose-Headers', 'Content-Disposition')
+  async export(@Query() dto: DefectExportDto) {
+    const file = await this.exports.export(dto);
+    return new StreamableFile(file.buffer, {type:file.mime,
+      disposition:`attachment; filename="QA_Checker_Issue_Report.${dto.format}"; filename*=UTF-8''${encodeURIComponent(file.filename)}`});
+  }
   @Post() create(@Body() dto: CreateDefectDto, @CurrentUser() user: AuthUser) { return this.defects.create(dto,user); }
   @Get(':id') get(@Param('id',ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) { return this.defects.get(id,user); }
   @Patch(':id') update(@Param('id',ParseUUIDPipe) id: string,@Body() dto: UpdateDefectDto,@CurrentUser() user: AuthUser) { return this.defects.update(id,dto,user); }

@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import AppSidebar, { SidebarUser } from '../../../components/AppSidebar';
@@ -20,6 +20,30 @@ export default function IssueReportScreen({ projectId }: { projectId: string }) 
   const [builds, setBuilds] = useState<string[]>([]);
   const [remainingPage, setRemainingPage] = useState(1), [rerequestPage, setRerequestPage] = useState(1);
   const [loading, setLoading] = useState(true), [error, setError] = useState(''), [refresh, setRefresh] = useState(0);
+  const [exportOpen, setExportOpen] = useState(false), [exporting, setExporting] = useState(false), [exportError, setExportError] = useState('');
+  const exportLock = useRef(false);
+
+  async function download(format: 'xlsx' | 'csv') {
+    if (exportLock.current || loading || error || !data) return;
+    exportLock.current = true; setExporting(true); setExportOpen(false); setExportError('');
+    try {
+      const query = new URLSearchParams({ projectId, period, format });
+      if (build) query.set('buildVersion', build);
+      const res = await fetch(API + '/defects/report/export?' + query, { cache: 'no-store', headers: { Authorization: `Bearer ${localStorage.getItem('qa_checker_token') ?? ''}` } });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        if (res.status === 401) throw new Error('다시 로그인한 후 내보내기를 시도해 주세요.');
+        throw new Error(typeof body?.message === 'string' ? body.message : '내보내기에 실패했습니다. 다시 시도해 주세요.');
+      }
+      const encoded = res.headers.get('Content-Disposition')?.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+      const filename = encoded ? decodeURIComponent(encoded) : `QA_Checker_Issue_Report.${format}`;
+      const url = URL.createObjectURL(await res.blob());
+      const link = document.createElement('a'); link.href = url; link.download = filename;
+      document.body.appendChild(link); link.click(); link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (e) { setExportError(message(e)); }
+    finally { exportLock.current = false; setExporting(false); }
+  }
 
   useEffect(() => {
     const control = new AbortController();
@@ -49,11 +73,17 @@ export default function IssueReportScreen({ projectId }: { projectId: string }) 
       <header className="workspace-hero project"><div className="workspace-hero-copy"><span className="workspace-eyebrow">{data?.project.name ?? 'QA WORKSPACE'}</span><h1>이슈 현황</h1><p>등록된 이슈의 진행 상태와 처리 현황을 확인합니다.</p></div></header>
       <nav><Link className={issueStyles.backLink} href={`/projects/${projectId}`}>← 프로젝트로</Link></nav>
       <section className={`${issueStyles.panel} ${styles.filters}`} aria-label="현황 필터">
-        <label>기간<select value={period} onChange={e => { setPeriod(e.target.value); resetPages(); }}><option value="ALL">전체</option><option value="7">최근 7일</option><option value="14">최근 14일</option><option value="30">최근 30일</option></select></label>
-        <label>빌드 버전<select value={build} onChange={e => { setBuild(e.target.value); resetPages(); }}><option value="">전체 빌드</option>{builds.map(v => <option key={v} value={v}>{v}</option>)}</select></label>
-        <button className="secondary-button" disabled={loading} onClick={() => setRefresh(n => n + 1)}>새로고침</button>
+        <label>기간<select disabled={exporting} value={period} onChange={e => { setPeriod(e.target.value); resetPages(); setExportOpen(false); setExportError(''); }}><option value="ALL">전체</option><option value="7">최근 7일</option><option value="14">최근 14일</option><option value="30">최근 30일</option></select></label>
+        <label>빌드 버전<select disabled={exporting} value={build} onChange={e => { setBuild(e.target.value); resetPages(); setExportOpen(false); setExportError(''); }}><option value="">전체 빌드</option>{builds.map(v => <option key={v} value={v}>{v}</option>)}</select></label>
+        <button className="secondary-button" disabled={loading || exporting} onClick={() => setRefresh(n => n + 1)}>새로고침</button>
+        <div className={styles.export} onKeyDown={e => { if (e.key === 'Escape') setExportOpen(false); }}>
+          <button className="primary-button" aria-expanded={exportOpen} aria-controls="export-options" disabled={loading || exporting || !!error || !data} onClick={() => setExportOpen(v => !v)}>{exporting ? '내보내는 중...' : '내보내기'}</button>
+          {exportOpen && <div id="export-options" className={styles.exportOptions} aria-label="내보내기 형식"><button className="secondary-button" onClick={() => download('xlsx')}>Excel (.xlsx)</button><button className="secondary-button" onClick={() => download('csv')}>CSV (.csv)</button></div>}
+        </div>
         <p className={issueStyles.hint}>등록일 기준 · 한국시간 · 최근 기간은 오늘 포함<br />선택한 기간에 등록된 이슈의 현재 상태와 활동 이력을 집계합니다.</p>
       </section>
+      {exporting && <p role="status">내보내는 중...</p>}
+      {exportError && <p className={issueStyles.error} role="alert">{exportError}</p>}
       {loading ? <p role="status">이슈 현황을 불러오는 중...</p> : error ? <p className={issueStyles.error} role="alert">{error}</p> : data && <>
         <p className={issueStyles.hint}>조회 기준: {timestamp(data.generatedAt)}{data.filters.from && ` · 등록 시작: ${timestamp(data.filters.from)}`}</p>
         {data.totals.total === 0 && <p className={styles.empty} role="status">선택한 조건에 등록된 이슈가 없습니다.</p>}

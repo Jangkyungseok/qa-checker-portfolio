@@ -88,9 +88,11 @@ async function main(){const before=await fingerprint();try{
     assert.equal(new Set([...first.remainingIssues,...second.remainingIssues].map(x=>x.id)).size,23);
   });
   console.log('PASSED '+passed+' report integration groups');
+  await require('./defects-export.checks.cjs')({db,base,token:a.token,tokens:[a.token,leader.token,admin.token],project,empty,ids,userId:a.id,check,api,route});
+  console.log('PASSED '+passed+' report/export integration groups');
 }finally{
   if(child){child.kill();await new Promise(r=>child.exitCode!==null?r():child.once('exit',r));}
-  if(projects.length){await db.query('DELETE FROM defect_activities WHERE defect_id IN (SELECT id FROM defects WHERE project_id=ANY($1::uuid[]))',[projects]);await db.query('DELETE FROM defects WHERE project_id=ANY($1::uuid[])',[projects]);await db.query('DELETE FROM projects WHERE id=ANY($1::uuid[])',[projects]);}
+  if(projects.length){for(const table of ['defect_activities','defect_comments','defect_attachments'])await db.query(`DELETE FROM ${table} WHERE defect_id IN (SELECT id FROM defects WHERE project_id=ANY($1::uuid[]))`,[projects]);await db.query('DELETE FROM defects WHERE project_id=ANY($1::uuid[])',[projects]);await db.query('DELETE FROM projects WHERE id=ANY($1::uuid[])',[projects]);}
   if(users.length){await db.query('DELETE FROM user_sessions WHERE user_id=ANY($1::uuid[])',[users]);await db.query('DELETE FROM users WHERE id=ANY($1::uuid[])',[users]);}
   if(adminSession)await db.query('DELETE FROM user_sessions WHERE id=$1',[adminSession]);
   assert.deepEqual(await fingerprint(),before);console.log('CLEANUP PASS: own fixtures removed, existing data unchanged');await db.end();}}

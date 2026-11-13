@@ -2,6 +2,8 @@
 .filters { display:flex; gap:16px; align-items:end; flex-wrap:wrap; }
 .filters label { min-width:160px; flex:1; max-width:320px; }
 .filters p { width:100%; margin:0; }
+.export { position:relative; }
+.exportOptions { position:absolute; right:0; top:calc(100% + 6px); z-index:5; display:grid; gap:6px; min-width:170px; padding:8px; border:1px solid #dce4ed; border-radius:10px; background:white; box-shadow:0 6px 18px #172b4d18; }
 .kpis { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:12px; }
 .kpi { padding:18px 16px; border:1px solid #dce4ed; border-radius:12px; background:white; }
 .kpi span { color:#64748b; font-size:13px; }

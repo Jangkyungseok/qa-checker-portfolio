@@ -148,4 +148,25 @@ Build History 목록/상세/생성/수정, 전달 버전, 변경 내용, 위험�
 일별 추이 및 페이지별 잔여/재요청 목록을 집계한다. 한국시간 오늘 포함 기간이며 현재 상태를 보여준다.
 기존 defects/defect_activities만 사용하고 신규 migration은 없다. 기존 검수 Reports 모듈은 유지한다.
 정확한 기준과 향후 QA 결과 리포트 6개 영역의 데이터 재사용/수동 입력 구분은 `docs/ISSUE_REPORT.md`를 참고한다.
-시간 평균, 최종 리포트 UI, CSV/Excel/PDF, 출시 리스크/리드 의견 입력은 아직 미구현이다.
+`GET /defects/report/export`로 동일 기간/빌드 조건의 Excel(7개 Sheet)/CSV를 Backend에서 생성한다.
+공유 cohort 필터와 읽기 전용 snapshot을 사용하며 ExcelJS는 Backend에만 추가했다.
+화면 pagination과 무관하게 전체 결과를 내보내며 건수/데이터 크기/동시 생성 제한이 있다.
+삭제 코멘트 본문과 비공개 Storage 경로/URL은 출력하지 않는다. 신규 migration은 없다.
+시간 평균은 미구현이다. QA 결과 리포트 작성/PDF는 아래 11절의 로컬 구현 상태를 따른다.
+
+## 11. QA 결과 리포트 1차 MVP (로컬 구현)
+
+- Workspace → `/projects/[projectId]/qa-report`에서 목록, `/new`에서 작성, `/[reportId]`에서 수정/조회한다.
+- `db/0013_add_qa_reports.sql`은 로컬 Docker DB에만 적용했다. Production 미적용이며 배포 전에 Supabase SQL Editor에서 별도 검토·수동 적용해야 한다. 자동 migration은 없다.
+- `qa_reports`는 개요, 테스트 기간, 집계 빌드, 고려사항, 리드 의견, 작성/수정자와 version을 저장한다. `qa_report_issue_links`는 대표/고려사항별 이슈와 선택 이미지를 연결한다.
+- 승인 USER는 목록/상세/PDF 조회, LEADER/ADMIN은 생성/수정도 가능하다. Backend guard가 직접 API 호출을 통제한다. 현재 승인 계정의 전체 프로젝트 접근 제약은 그대로다.
+- 초안은 미입력 상태로 저장할 수 있다. PDF 생성 시 필수 입력을 검사하고, 수정은 version 충돌 시 409를 반환한다. 저장된 링크와 이미지를 PDF 요청 시 다시 검사한다.
+- 한국시간 테스트 시작일~종료일에 등록된 이슈의 현재 상태를 기존 report 집계로 계산한다. 과거 시점 상태나 기간 전 이슈의 기간 내 활동을 복원하지 않는다.
+- 대표 이슈는 최대 5개, 이슈별 활성 이미지 1개를 출력한다. QA 대응 고려사항은 필수 대응 고려/우선 대응 고려/추후 개선 고려/추가 확인 필요의 수동 선택·서술이며 상태/우선순위와 자동 분류하지 않는다.
+- A4 가로 Executive Summary이며 첫 페이지에 01~03 전체를 배치한다. 연결 이슈 0건인 고려사항은 PDF에서 `없음 / 해당 없음`으로 표시한다.
+- PDF 6개 영역: 테스트 개요 → 이슈 요약 → 이슈 현황 → 대표 이슈 → QA 대응 고려사항 → QA 리드 최종 의견.
+- Backend PDFKit 0.20.2 + sharp 0.35.5, Noto Sans CJK KR Regular/Bold(OFL)를 사용한다. 폰트는 `backend/src/qa-reports/fonts`에 포함하며 Nest build가 dist로 복사한다. Render Node는 sharp 요구 버전(Node >=20.9)을 만족해야 한다.
+- 미리보기와 다운로드는 같은 PDF API/Blob을 사용한다. 입력 변경/화면 종료 시 Object URL을 해제하고, 화면 종료 시 진행 중 PDF 요청을 취소한다. 생성 중 중복 요청을 막는다.
+- PDF는 요청 시 메모리에서 생성하며 영구 저장하지 않는다. 대표 이미지당 5MiB, 2천만 픽셀 제한 및 프로세스당 PDF 1개 생성 제한이 있다. 영상은 존재 여부만 표시한다.
+- 제출본 snapshot, 승인 workflow, 최종 제출본 영구 보관은 미구현이다. Chrome PDF 미리보기의 최종 시각 확인은 수동 검수 대상으로 남긴다.
+- 자동 검증: `node backend/test/qa-reports.integration.cjs`. 실제 로컬 API로 PDF를 생성하고 저장소 밖에서 렌더링 검수한다. 테스트 fixture는 종료 후 제거하며 기존 데이터 fingerprint를 비교한다.

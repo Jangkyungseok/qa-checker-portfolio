@@ -11,6 +11,7 @@ import { QaDecisionsModule } from './qa-decisions/qa-decisions.module';
 import { TestItemsModule } from './test-items/test-items.module';
 import { UsersModule } from './users/users.module';
 import { DefectsModule } from './defects/defects.module';
+import { QaReportsModule } from './qa-reports/qa-reports.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { DefectsModule } from './defects/defects.module';
     ReportsModule,
     QaDecisionsModule,
     DefectsModule,
+    QaReportsModule,
   ],
 })
 export class AppModule {}

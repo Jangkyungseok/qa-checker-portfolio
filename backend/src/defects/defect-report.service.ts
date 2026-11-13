@@ -1,15 +1,18 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { DbService } from '../db/db.service';
 import { DefectReportDto } from './dto/defect-report.dto';
+import { PoolClient } from 'pg';
+import { REPORT_COHORT, reportParams, ReportDates, datedCohort } from './report-filter';
 
 @Injectable()
 export class DefectReportService {
   constructor(private readonly db: DbService) {}
 
-  async get(dto: DefectReportDto) {
+  async get(dto: DefectReportDto, client?: PoolClient, dates?: ReportDates) {
     // One statement gives every aggregate and page the same PostgreSQL snapshot.
     // Period selects a creation-date cohort, not historical status at the period end.
-    const result = await this.db.query(`
+    const query = (sql: string, values: unknown[]) => client ? client.query(sql, values) : this.db.query(sql, values);
+    const result = await query(`
       WITH clock AS (
         SELECT now() AS as_of, (now() AT TIME ZONE 'Asia/Seoul')::date AS today
       ), bounds AS (
@@ -18,9 +21,7 @@ export class DefectReportService {
           today - (coalesce($2::int, 7) - 1) AS trend_start FROM clock
       ), cohort AS MATERIALIZED (
         SELECT d.* FROM defects d CROSS JOIN bounds b
-        WHERE d.project_id=$1 AND d.created_at<=b.as_of
-          AND (b.starts_at IS NULL OR d.created_at>=b.starts_at)
-          AND ($3::text IS NULL OR d.build_version=$3)
+        WHERE ${dates ? datedCohort(7,8) : REPORT_COHORT}
       ), events AS MATERIALIZED (
         SELECT a.* FROM defect_activities a JOIN cohort d ON d.id=a.defect_id
         CROSS JOIN bounds b WHERE a.event_type='STATUS_CHANGED' AND a.created_at<=b.as_of
@@ -89,9 +90,11 @@ export class DefectReportService {
           'remaining',jsonb_build_object('page',$4::int,'total',c.remaining),
           'rerequest',jsonb_build_object('page',$5::int,'total',c.rerequested))
       ) AS report FROM projects p CROSS JOIN bounds b CROSS JOIN counts c WHERE p.id=$1
-    `, [dto.projectId, dto.period==='ALL'?null:Number(dto.period), dto.buildVersion??null,
-      dto.remainingPage,dto.rerequestPage,dto.period]);
+    `, [...reportParams(dto),
+      dto.remainingPage,dto.rerequestPage,dto.period,...(dates ? [dates.startDate,dates.endDate] : [])]);
     if (!result.rowCount) throw new NotFoundException('프로젝트를 찾을 수 없습니다.');
-    return result.rows[0].report;
+    const report = result.rows[0].report;
+    if (dates) report.filters = {...report.filters, period:'CUSTOM', from:`${dates.startDate}T00:00:00+09:00`, endDate:dates.endDate};
+    return report;
   }
 }
