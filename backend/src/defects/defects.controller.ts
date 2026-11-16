@@ -1,3 +1,5 @@
+import { Roles } from '../common/roles.decorator';
+import { RolesGuard } from '../common/roles.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { DefectAttachmentsService, EVIDENCE_POLICY, MAX_EVIDENCE_BYTES } from './defect-attachments.service';
@@ -13,7 +15,8 @@ import { DefectExportService } from './defect-export.service';
 import { CommentDto, CreateDefectDto, DefectStatusDto, ListDefectsDto, UpdateCommentDto, UpdateDefectDto } from './dto/defect.dto';
 
 @Controller('defects')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, RolesGuard)
+@Roles('USER', 'LEADER', 'ADMIN', 'DEV')
 export class DefectsController {
   constructor(private readonly defects: DefectsService, private readonly attachments: DefectAttachmentsService, private readonly reports: DefectReportService, private readonly exports: DefectExportService) {}
   @Get() list(@Query() dto: ListDefectsDto, @CurrentUser() user: AuthUser) { return this.defects.list(dto,user); }
@@ -27,9 +30,9 @@ export class DefectsController {
     return new StreamableFile(file.buffer, {type:file.mime,
       disposition:`attachment; filename="QA_Checker_Issue_Report.${dto.format}"; filename*=UTF-8''${encodeURIComponent(file.filename)}`});
   }
-  @Post() create(@Body() dto: CreateDefectDto, @CurrentUser() user: AuthUser) { return this.defects.create(dto,user); }
+  @Post() @Roles('USER','LEADER','ADMIN') create(@Body() dto: CreateDefectDto, @CurrentUser() user: AuthUser) { return this.defects.create(dto,user); }
   @Get(':id') get(@Param('id',ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) { return this.defects.get(id,user); }
-  @Patch(':id') update(@Param('id',ParseUUIDPipe) id: string,@Body() dto: UpdateDefectDto,@CurrentUser() user: AuthUser) { return this.defects.update(id,dto,user); }
+  @Patch(':id') @Roles('USER','LEADER','ADMIN') update(@Param('id',ParseUUIDPipe) id: string,@Body() dto: UpdateDefectDto,@CurrentUser() user: AuthUser) { return this.defects.update(id,dto,user); }
   @Patch(':id/status') status(@Param('id',ParseUUIDPipe) id: string,@Body() dto: DefectStatusDto,@CurrentUser() user: AuthUser) { return this.defects.status(id,dto,user); }
   @Get(':id/comments') comments(@Param('id',ParseUUIDPipe) id: string) { return this.defects.comments(id); }
   @Post(':id/comments') addComment(@Param('id',ParseUUIDPipe) id: string,@Body() dto: CommentDto,@CurrentUser() user: AuthUser) { return this.defects.addComment(id,dto.body,user); }
@@ -42,6 +45,7 @@ export class DefectsController {
   @UseInterceptors(FileInterceptor('file',{storage:memoryStorage(),limits:{fileSize:MAX_EVIDENCE_BYTES,files:1,fields:1,parts:3}}))
   uploadAttachment(@Param('id',ParseUUIDPipe) id:string,@Body('uploadId',ParseUUIDPipe) uploadId:string,@UploadedFile() file:Express.Multer.File,@CurrentUser() user:AuthUser) { return this.attachments.upload(id,uploadId,file,user); }
   @Delete(':id/attachments/:attachmentId')
+  @Roles('USER','LEADER','ADMIN')
   removeAttachment(@Param('id',ParseUUIDPipe) id:string,@Param('attachmentId',ParseUUIDPipe) attachmentId:string,@CurrentUser() user:AuthUser) { return this.attachments.remove(id,attachmentId,user); }
   @Get(':id/attachments/:attachmentId/file')
   @Header('Cache-Control','private, no-store')

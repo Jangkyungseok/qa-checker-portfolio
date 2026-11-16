@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PoolClient } from 'pg';
 import { DbService } from '../db/db.service';
 import { AuthUser } from '../common/auth-user';
@@ -16,14 +16,14 @@ export class QaReportsService {
   private async project(id:string,c?:PoolClient) {
     if(!(await (c ? c.query('SELECT id FROM projects WHERE id=$1',[id]) : this.db.query('SELECT id FROM projects WHERE id=$1',[id]))).rowCount)throw new NotFoundException('프로젝트를 찾을 수 없습니다.');
   }
-  async list(projectId:string) {
+  async list(projectId:string,user:AuthUser) {
     await this.project(projectId);
-    return (await this.db.query(`SELECT r.id,r.title,r.target_build,r.updated_at,r.version,to_char(r.test_start_date,'YYYY-MM-DD') AS test_start_date,to_char(r.test_end_date,'YYYY-MM-DD') AS test_end_date,u.name AS author_name FROM qa_reports r JOIN users u ON u.id=r.created_by WHERE r.project_id=$1 ORDER BY r.updated_at DESC,r.id`,[projectId])).rows;
+    return (await this.db.query(`SELECT r.id,r.title,r.target_build,r.updated_at,r.version,r.status,to_char(r.test_start_date,'YYYY-MM-DD') AS test_start_date,to_char(r.test_end_date,'YYYY-MM-DD') AS test_end_date,u.name AS author_name FROM qa_reports r JOIN users u ON u.id=r.created_by WHERE r.project_id=$1 AND ($2::boolean=false OR r.status='PUBLISHED') ORDER BY r.updated_at DESC,r.id`,[projectId,user.role==='DEV'])).rows;
   }
-  async get(projectId:string,id:string,c?:PoolClient) {
+  async get(projectId:string,id:string,user:AuthUser,c?:PoolClient) {
     const sql=`SELECT ${columns} FROM qa_reports r JOIN projects p ON p.id=r.project_id JOIN users u ON u.id=r.created_by WHERE r.id=$1 AND r.project_id=$2`;
     const result=c?await c.query(sql,[id,projectId]):await this.db.query(sql,[id,projectId]);
-    if(!result.rowCount)throw new NotFoundException('리포트를 찾을 수 없습니다.');
+    if(!result.rowCount||(user.role==='DEV'&&result.rows[0].status!=='PUBLISHED'))throw new NotFoundException('리포트를 찾을 수 없습니다.');
     const linksSql=`SELECT l.*,d.title,d.defect_no,d.status,d.priority,d.reproducibility,d.build_version FROM qa_report_issue_links l JOIN defects d ON d.id=l.defect_id WHERE l.report_id=$1 ORDER BY l.purpose,l.sort_order`;
     const links=c?await c.query(linksSql,[id]):await this.db.query(linksSql,[id]);
     return {...result.rows[0],links:links.rows.map(x=>({...x,issue_code:issueCode(x.defect_no)}))};
@@ -59,13 +59,13 @@ export class QaReportsService {
       await c.query('DELETE FROM qa_report_issue_links WHERE report_id=$1',[id]);
       const orders:Record<string,number>={};
       for(const link of dto.links){const order=orders[link.purpose]??0;orders[link.purpose]=order+1;await c.query('INSERT INTO qa_report_issue_links(report_id,defect_id,purpose,sort_order,attachment_id) VALUES($1,$2,$3,$4,$5)',[id,link.defectId,link.purpose,order,link.attachmentId??null]);}
-      return this.get(projectId,id!,c);
+      return this.get(projectId,id!,user,c);
     });
   }
-  async candidates(projectId:string,id:string,dto:QaCandidatesDto) {
+  async candidates(projectId:string,id:string,dto:QaCandidatesDto,user:AuthUser) {
     return this.db.transaction(async c=>{
       await c.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY');
-      const r=await this.get(projectId,id,c);
+      const r=await this.get(projectId,id,user,c);
       const builds=(await c.query(`SELECT version FROM (SELECT version FROM build_histories WHERE project_id=$1 UNION SELECT build_version AS version FROM defects WHERE project_id=$1) v WHERE version IS NOT NULL AND btrim(version)<>'' ORDER BY version`,[projectId])).rows.map(x=>x.version);
       if(!r.test_start_date||!r.test_end_date)return {items:[],total:0,page:dto.page,builds,summary:null};
       const params=[projectId,null,r.filter_build_version,r.test_start_date,r.test_end_date,`%${(dto.search??'').replace(/[\\%_]/g,'\\$&')}%`];
@@ -77,14 +77,24 @@ export class QaReportsService {
       return {items,total,page:dto.page,builds,summary:await this.summary(r,c)};
     });
   }
+  async publish(projectId:string,id:string,version:number,user:AuthUser) {
+    if(!['LEADER','ADMIN'].includes(user.role))throw new ForbiddenException('리포트 공개 권한이 없습니다.');
+    return this.db.transaction(async c=>{
+      const row=(await c.query('SELECT version,status FROM qa_reports WHERE id=$1 AND project_id=$2 FOR UPDATE',[id,projectId])).rows[0];
+      if(!row)throw new NotFoundException('리포트를 찾을 수 없습니다.');
+      if(row.version!==version)throw new ConflictException('다른 곳에서 리포트가 수정되었습니다. 새로고침 후 다시 확인해 주세요.');
+      if(row.status==='DRAFT')await c.query("UPDATE qa_reports SET status='PUBLISHED',version=version+1,updated_by=$3,updated_at=now() WHERE id=$1 AND project_id=$2",[id,projectId,user.id]);
+      return this.get(projectId,id,user,c);
+    });
+  }
   private summary(r:any,c:PoolClient) {
     return this.reports.get(Object.assign(new DefectReportDto(),{projectId:r.project_id,buildVersion:r.filter_build_version??undefined}),c,{startDate:r.test_start_date,endDate:r.test_end_date});
   }
-  async pdfData(projectId:string,id:string,version:number) {
+  async pdfData(projectId:string,id:string,version:number,user:AuthUser) {
     return this.db.transaction(async c=>{
       await c.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY');
       await c.query("SET LOCAL statement_timeout='15s'");
-      const report=await this.get(projectId,id,c);
+      const report=await this.get(projectId,id,user,c);
       if(report.version!==version)throw new ConflictException('다른 곳에서 리포트가 수정되었습니다. 새로고침 후 다시 확인해 주세요.');
       for(const key of ['title','target_build','test_start_date','test_end_date','test_scope','test_environment','test_method','lead_opinion'])if(!report[key]?.trim())throw new BadRequestException('PDF 생성에 필요한 기본 정보, 테스트 정보, QA 리드 최종 의견을 모두 입력해 주세요.');
       const dto=Object.assign(new QaReportDto(),{testStartDate:report.test_start_date,testEndDate:report.test_end_date,filterBuildVersion:report.filter_build_version,links:report.links.map((x:any)=>({defectId:x.defect_id,purpose:x.purpose,attachmentId:x.attachment_id}))});

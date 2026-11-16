@@ -12,7 +12,12 @@ export class RolesGuard implements CanActivate {
       context.getHandler(),
       context.getClass(),
     ]);
-    if (!required?.length) return true;
+    // Existing roles retain legacy defaults; DEV must be explicitly allowed.
+    if (!required?.length) {
+      if (context.switchToHttp().getRequest().user?.role === 'DEV')
+        throw new ForbiddenException('해당 기능을 사용할 권한이 없습니다.');
+      return true;
+    }
 
     const user = context.switchToHttp().getRequest().user as AuthUser;
     if (!user || !required.includes(user.role)) {

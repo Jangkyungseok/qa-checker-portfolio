@@ -9,6 +9,7 @@ import { ProjectsService } from './projects.service';
 
 @Controller('projects')
 @UseGuards(AuthGuard, RolesGuard)
+@Roles('USER', 'LEADER', 'ADMIN', 'DEV')
 export class ProjectsController {
   constructor(private readonly projects: ProjectsService) {}
 

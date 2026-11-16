@@ -196,6 +196,14 @@ export default function ProjectWorkspacePage() {
     setErrorMessage('');
 
     try {
+      const current=JSON.parse(localStorage.getItem('qa_checker_user')??'null') as SidebarUser|null;
+      if(current?.role==='DEV') {
+        const response=await fetch(API_BASE_URL+'/projects',{headers:{Authorization:'Bearer '+token}});
+        const projects=await response.json();
+        if(!response.ok)throw new Error(projects.message??'프로젝트 정보를 불러오지 못했습니다.');
+        setProject(projects.find((item:Project)=>item.id===projectId)??null);
+        setInspections([]);setBuildHistories([]);return;
+      }
       const [projectsResponse, inspectionsResponse, historiesResponse] = await Promise.all([
         fetch(`${API_BASE_URL}/projects`, {
           headers: { Authorization: `Bearer ${token}` },
@@ -677,7 +685,12 @@ export default function ProjectWorkspacePage() {
             <div className="dashboard-error">{errorMessage}</div>
           )}
 
-          {!isLoading && !errorMessage && view === 'workspace' && (
+          {!isLoading && !errorMessage && user.role === 'DEV' && view === 'workspace' && (
+            <div className="workspace-card-grid three">
+              {([['defects','이슈 관리','등록된 이슈를 확인하고 대응 진행 상황을 기록합니다.'],['issue-report','이슈 현황','이슈 현황과 처리 결과를 확인합니다.'],['qa-report','QA 결과 리포트','QA 결과 리포트를 확인하고 PDF로 내려받습니다.']] as const).map(([route,title,description])=><button key={route} type="button" className="workspace-module-card live" onClick={()=>router.push('/projects/'+projectId+'/'+route)}><span className="workspace-module-icon issue-icon"><UiIcon name="issue" size={19}/></span><div><h2>{title}</h2><p>{description}</p></div><small className="workspace-status live-status">사용 가능</small></button>)}
+            </div>
+          )}
+          {!isLoading && !errorMessage && user.role !== 'DEV' && view === 'workspace' && (
             <div className="workspace-category-stack">
               <section className="workspace-category-block">
                 <div className="workspace-category-heading">

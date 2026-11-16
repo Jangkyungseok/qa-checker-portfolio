@@ -13,7 +13,7 @@ interface LoginResponse {
     id: string;
     email: string;
     name: string;
-    role: 'USER' | 'LEADER' | 'ADMIN';
+    role: 'USER' | 'LEADER' | 'ADMIN' | 'DEV';
   };
 }
 
@@ -66,7 +66,7 @@ export default function HomePage() {
         JSON.stringify(loginData.user),
       );
 
-      router.push('/dashboard');
+      router.push(loginData.user.role === 'DEV' ? '/projects' : '/dashboard');
     } catch (error) {
       setErrorMessage(
         error instanceof Error

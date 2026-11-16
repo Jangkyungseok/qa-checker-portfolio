@@ -36,6 +36,7 @@ function Screen({projectId,defectId,create}:Props) {
   },[request,projectId,retry]);
   if(error)return <main className={styles.panel}><p role="alert" className={styles.error}>{error}</p><button onClick={()=>setRetry(x=>x+1)}>다시 시도</button><Link href={`/projects/${projectId}`}>Workspace</Link></main>;
   if(!user||!project)return <main className="execution-loading" role="status">불러오는 중...</main>;
+  if(create&&user.role==='DEV')return <main className={styles.panel}>이슈 등록 권한이 없습니다.</main>;
   const base=`/projects/${projectId}/defects`;
   return <main className="app-shell"><AppSidebar user={user} activeMenu="project" currentProjectId={projectId} guardAction={leave.request}/>
     <section className="app-main workspace-main"><div className={`workspace-page ${styles.page}`}>
@@ -43,17 +44,17 @@ function Screen({projectId,defectId,create}:Props) {
       {!defectId&&<nav aria-label="뒤로가기"><Link className={styles.backLink} href={create?base:`/projects/${projectId}`}>{create?'← 이슈 목록':'← 프로젝트로'}</Link></nav>}
       {create?<IssueEditor projectId={projectId} request={request} onSaved={row=>leave.finish(()=>router.push(`${base}/${row.id}`))} onCancel={()=>leave.request(()=>router.push(base))}/>
         :defectId?<IssueDetail projectId={projectId} issueId={defectId} user={user} request={request}/>
-        :<DefectList projectId={projectId} request={request}/>}
+        :<DefectList projectId={projectId} request={request} user={user}/>}
     </div></section></main>;
 }
 
-function DefectList({projectId,request}:{projectId:string;request:Request}){
+function DefectList({projectId,request,user}:{projectId:string;request:Request;user:SidebarUser}){
  const router=useRouter();const [search,setSearch]=useState(''),[query,setQuery]=useState(''),[status,setStatus]=useState(''),[priority,setPriority]=useState(''),[frequency,setFrequency]=useState(''),[page,setPage]=useState(1),[retry,setRetry]=useState(0);
  const [data,setData]=useState<{items:Issue[];total:number}>({items:[],total:0}),[loading,setLoading]=useState(true),[error,setError]=useState('');
  useEffect(()=>{const c=new AbortController();setLoading(true);setError('');const q=new URLSearchParams({projectId,page:String(page)});if(query)q.set('search',query);if(status)q.set('status',status);if(priority)q.set('priority',priority);if(frequency)q.set('reproducibility',frequency);
  request<{items:Issue[];total:number}>('/defects?'+q,{signal:c.signal}).then(result=>{if(!c.signal.aborted){setData(result);if(page>1&&!result.items.length)setPage(p=>p-1);}}).catch(e=>{if(!c.signal.aborted)setError(message(e));}).finally(()=>{if(!c.signal.aborted)setLoading(false);});return()=>c.abort();},[request,projectId,query,status,priority,frequency,page,retry]);
  function changed(row:Issue){setData(d=>{const remove=!!status&&row.status!==status;return {items:remove?d.items.filter(x=>x.id!==row.id):d.items.map(x=>x.id===row.id?row:x),total:Math.max(0,d.total-(remove?1:0))};});setRetry(n=>n+1);}
- return <section className={styles.panel}><div className={styles.heading}><h2>이슈 목록</h2><Link className="primary-button" href={'/projects/'+projectId+'/defects/new'}>이슈 등록</Link></div>
+ return <section className={styles.panel}><div className={styles.heading}><h2>이슈 목록</h2>{user.role!=='DEV'&&<Link className="primary-button" href={'/projects/'+projectId+'/defects/new'}>이슈 등록</Link>}</div>
  <form className={styles.filters} onSubmit={e=>{e.preventDefault();setPage(1);setQuery(search);}}><label>검색<input placeholder="이슈 번호 또는 제목" maxLength={200} value={search} onChange={e=>setSearch(e.target.value)}/></label>
  <label>상태<select value={status} onChange={e=>{setStatus(e.target.value);setPage(1);}}><option value="">전체</option><Options values={STATES}/></select></label>
  <label>우선순위<select value={priority} onChange={e=>{setPriority(e.target.value);setPage(1);}}><option value="">전체</option><Options values={PRIORITIES}/></select></label>

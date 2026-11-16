@@ -44,12 +44,13 @@ Supabase SDK는 Storage 파일 처리에 사용하며 앱 인증은 자체 사�
 
 - `users` / `user_sessions` 기반 opaque Bearer 세션 인증이며 DB에는 토큰 해시를 저장한다.
 - AuthGuard는 세션 만료/철회와 사용자 승인 상태를 검사하고 DB의 현재 role을 읽는다.
-- RolesGuard는 API의 `@Roles(...)`와 USER / LEADER / ADMIN을 비교한다. 최종 권한 통제는 Backend가 담당한다.
+- RolesGuard는 API의 `@Roles(...)`와 USER / LEADER / ADMIN / DEV를 비교한다. 최종 권한 통제는 Backend가 담당한다.
 - USER: 일반 조회 및 허용된 검수 업무. 이슈 이력은 조회 전용이다.
 - LEADER: Build History와 이슈 이력 생성/수정/전용 상태 변경 등 관리 업무가 가능하다.
 - ADMIN: 사용자 관리와 ADMIN 전용 API를 사용한다. 빌드 검수 목록 삭제는 ADMIN 전용이다. 모든 메뉴에 삭제 API가 존재하는 것은 아니다.
 - ADMIN single active session: 동일 ADMIN 사용자에게 철회되지 않고 만료되지 않은 세션이 있으면 신규 로그인을 HTTP 409로 차단한다. 기존 환경에서 정상 로그아웃 후 재로그인하는 것을 우선한다. 비정상적으로 활성 세션이 남은 경우 production DB의 `user_sessions`에서 해당 ADMIN의 활성 세션을 확인한 후, 해당 세션의 `revoked_at`을 현재 시각으로 갱신한다.
 - 현재 사용자 API는 `GET /auth/me`다. 권한 표시 문제는 해당 응답, DB role, Frontend 캐시를 함께 확인한다.
+- DEV(로컬 구현): 이슈 대응, 이슈 현황/Export 및 PUBLISHED QA 결과 리포트 조회/PDF 전용이다. 복수 세션을 허용하고 내부 QA API/화면은 차단한다. `0015_add_dev_role.sql`과 `0016_add_qa_report_publish_status.sql`은 로컬 적용 완료이며 production 적용·검증 완료는 사용자 확인 기준이다. 기존 리포트는 DRAFT로 시작하며 LEADER/ADMIN만 공개한다. 실제 외부 고객 DEV 계정 발급 전 프로젝트 membership/access control 필수이며 현재는 내부 테스트 DEV만 사용한다. 프로젝트 멤버십은 없으므로 승인된 DEV도 모든 프로젝트의 허용 데이터를 볼 수 있다. 세부 권한과 운영 제약은 [DEV_ROLE.md](DEV_ROLE.md)를 참고한다.
 
 ## 4. Render 배포 명령
 

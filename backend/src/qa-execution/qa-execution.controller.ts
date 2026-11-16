@@ -1,3 +1,4 @@
+import { Roles } from '../common/roles.decorator';
 import {
   Body,
   Controller,
@@ -16,6 +17,7 @@ import { QaExecutionService } from './qa-execution.service';
 
 @Controller()
 @UseGuards(AuthGuard, RolesGuard)
+@Roles('USER', 'LEADER', 'ADMIN')
 export class QaExecutionController {
   constructor(
     private readonly qaExecution: QaExecutionService,

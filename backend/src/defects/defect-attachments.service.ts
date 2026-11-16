@@ -64,6 +64,7 @@ export class DefectAttachmentsService {
     }
   }
   async remove(id:string,attachmentId:string,user:AuthUser) {
+    if(user.role==='DEV')throw new ForbiddenException('DEV는 증빙을 삭제할 수 없습니다.');
     return this.db.transaction(async c=>{
       const issue=(await c.query('SELECT * FROM defects WHERE id=$1 FOR UPDATE',[id])).rows[0];
       if(!issue)throw new NotFoundException('이슈를 찾을 수 없습니다.');

@@ -8,7 +8,7 @@ import { RolesGuard } from '../common/roles.guard';
 import { UsersService } from './users.service';
 
 class ApproveUserDto {
-  @IsIn(['USER', 'LEADER'])
+  @IsIn(['USER', 'LEADER', 'DEV'])
   role!: UserRole;
 }
 

@@ -1,3 +1,4 @@
+import { Roles } from '../common/roles.decorator';
 import {
   Controller,
   Get,
@@ -10,6 +11,7 @@ import { ReportsService } from './reports.service';
 
 @Controller('reports')
 @UseGuards(AuthGuard, RolesGuard)
+@Roles('USER', 'LEADER', 'ADMIN')
 export class ReportsController {
   constructor(
     private readonly reports: ReportsService,

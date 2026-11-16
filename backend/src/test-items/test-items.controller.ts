@@ -33,6 +33,7 @@ const ALLOWED_MIME_TYPES = new Set([
 
 @Controller('test-items')
 @UseGuards(AuthGuard, RolesGuard)
+@Roles('USER', 'LEADER', 'ADMIN')
 export class TestItemsController {
   constructor(
     private readonly testItems: TestItemsService,

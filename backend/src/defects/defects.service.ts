@@ -35,6 +35,7 @@ export class DefectsService {
     await client.query('INSERT INTO defect_activities(defect_id,actor_id,event_type,changes,comment_id) VALUES($1,$2,$3,$4,$5)',[id,actor,event,JSON.stringify(changes),commentId]);
   }
   async create(dto:CreateDefectDto,user:AuthUser) {
+    if(user.role==='DEV')throw new ForbiddenException('DEV는 이슈를 등록할 수 없습니다.');
     const id=await this.db.transaction(async c=>{
       if(!(await c.query('SELECT id FROM projects WHERE id=$1 FOR SHARE',[dto.projectId])).rowCount)throw new NotFoundException('프로젝트를 찾을 수 없습니다.');
       const related=await this.related(c,dto.relatedIssueCode);
@@ -48,6 +49,7 @@ export class DefectsService {
   }
   private checkVersion(row:any,version:number) {if(row.version!==version)throw new ConflictException('다른 사용자가 변경했습니다. 새로고침 후 다시 시도해 주세요.');}
   async update(id:string,dto:UpdateDefectDto,user:AuthUser) {
+    if(user.role==='DEV')throw new ForbiddenException('DEV는 원본 이슈를 수정할 수 없습니다.');
     await this.db.transaction(async c=>{
       const row=await this.locked(c,id);this.checkVersion(row,dto.version);
       if(user.role==='USER'&&row.created_by!==user.id)throw new ForbiddenException('본인이 등록한 이슈만 수정할 수 있습니다.');
@@ -70,7 +72,7 @@ export class DefectsService {
     await this.db.transaction(async c=>{
       const row=await this.locked(c,id);this.checkVersion(row,dto.version);
       if(!(TRANSITIONS[row.status]??[]).includes(dto.status))throw new BadRequestException('허용되지 않은 상태 변경입니다.');
-      if(!allowedTransitions(row,user).includes(dto.status))throw new ForbiddenException('최종 확인과 재오픈은 LEADER/ADMIN만 가능합니다.');
+      if(!allowedTransitions(row,user).includes(dto.status))throw new ForbiddenException('해당 상태로 변경할 권한이 없습니다.');
       await c.query(`UPDATE defects SET status=$2::varchar,closed_by=$3,closed_at=CASE WHEN $3::uuid IS NOT NULL THEN now() ELSE NULL END,
         updated_by=$4,updated_at=now(),version=version+1 WHERE id=$1`,[id,dto.status,FINAL_STATES.includes(dto.status)?user.id:null,user.id]);
       await this.activity(c,id,user.id,'STATUS_CHANGED',{from:row.status,to:dto.status,action:FINAL_STATES.includes(row.status)?'REOPENED':undefined});
@@ -78,7 +80,7 @@ export class DefectsService {
   }
   async comments(id: string) {
     await this.get(id);
-    return (await this.db.query(`SELECT c.id,c.defect_id,c.author_id,u.name AS author_name,c.created_at,c.updated_at,c.version,c.deleted_at,
+    return (await this.db.query(`SELECT c.id,c.defect_id,c.author_id,u.name AS author_name,u.role AS author_role,c.created_at,c.updated_at,c.version,c.deleted_at,
       CASE WHEN c.deleted_at IS NULL THEN c.body ELSE NULL END AS body FROM defect_comments c
       JOIN users u ON u.id=c.author_id WHERE c.defect_id=$1 ORDER BY c.created_at,c.id`,[id])).rows;
   }
@@ -96,7 +98,7 @@ export class DefectsService {
       const result = await client.query('SELECT * FROM defect_comments WHERE id=$1 AND defect_id=$2 FOR UPDATE',[commentId,id]);
       const row = result.rows[0];
       if (!row) throw new NotFoundException('코멘트를 찾을 수 없습니다.');
-      if (update ? row.author_id !== user.id : row.author_id !== user.id && user.role === 'USER')
+      if (update ? row.author_id !== user.id : row.author_id !== user.id && !['LEADER','ADMIN'].includes(user.role))
         throw new ForbiddenException('코멘트 변경 권한이 없습니다.');
       if (row.deleted_at) throw new ConflictException('이미 삭제된 코멘트입니다.');
       if (update) this.checkVersion(row,update.version);
@@ -110,7 +112,7 @@ export class DefectsService {
   }
   async activities(id: string) {
     await this.get(id);
-    return (await this.db.query(`SELECT a.*,u.name AS actor_name FROM defect_activities a JOIN users u ON u.id=a.actor_id
+    return (await this.db.query(`SELECT a.*,u.name AS actor_name,u.role AS actor_role FROM defect_activities a JOIN users u ON u.id=a.actor_id
       WHERE a.defect_id=$1 ORDER BY a.created_at,a.id`,[id])).rows;
   }
 }

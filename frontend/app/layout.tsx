@@ -1,3 +1,5 @@
+import { Suspense } from 'react';
+import DevRouteGuard from './components/DevRouteGuard';
 import './globals.css';
 
 export const metadata = {
@@ -12,7 +14,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko">
-      <body>{children}</body>
+      <body><Suspense fallback={<main className="execution-loading">불러오는 중...</main>}><DevRouteGuard>{children}</DevRouteGuard></Suspense></body>
     </html>
   );
 }

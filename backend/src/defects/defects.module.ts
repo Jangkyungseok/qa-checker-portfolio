@@ -1,3 +1,4 @@
+import { RolesGuard } from '../common/roles.guard';
 import { StorageModule } from '../storage/storage.module';
 import { DefectFileStore } from './defect-file-store';
 import { DefectAttachmentsService } from './defect-attachments.service';
@@ -8,5 +9,5 @@ import { DefectsService } from './defects.service';
 import { DefectReportService } from './defect-report.service';
 import { DefectExportService } from './defect-export.service';
 
-@Module({ imports:[StorageModule], controllers:[DefectsController], providers:[DefectsService,DefectReportService,DefectExportService,DefectAttachmentsService,DefectFileStore,AuthGuard], exports:[DefectReportService,DefectAttachmentsService] })
+@Module({ imports:[StorageModule], controllers:[DefectsController], providers:[DefectsService,DefectReportService,DefectExportService,DefectAttachmentsService,DefectFileStore,AuthGuard,RolesGuard], exports:[DefectReportService,DefectAttachmentsService] })
 export class DefectsModule {}

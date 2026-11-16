@@ -20,6 +20,7 @@ import { UpdateBuildHistoryDto } from './dto/update-build-history.dto';
 
 @Controller('build-histories')
 @UseGuards(AuthGuard, RolesGuard)
+@Roles('USER', 'LEADER', 'ADMIN')
 export class BuildHistoriesController {
   constructor(private readonly buildHistories: BuildHistoriesService) {}
 

@@ -1,6 +1,6 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
-CREATE TYPE user_role AS ENUM ('USER', 'LEADER', 'ADMIN');
+CREATE TYPE user_role AS ENUM ('USER', 'LEADER', 'ADMIN', 'DEV');
 
 CREATE TYPE user_status AS ENUM ('PENDING', 'APPROVED', 'REJECTED', 'INACTIVE');
 
@@ -474,6 +474,7 @@ CREATE INDEX idx_defect_activities_event_time ON defect_activities(event_type,cr
 
 -- QA result report drafts (0013)
 CREATE TABLE qa_reports (
+  status varchar(16) NOT NULL DEFAULT 'DRAFT' CONSTRAINT qa_reports_status_check CHECK (status IN ('DRAFT','PUBLISHED')),
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id uuid NOT NULL REFERENCES projects(id),
   title varchar(200) NOT NULL DEFAULT '',

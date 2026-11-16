@@ -21,6 +21,7 @@ import { QaDecisionsService } from './qa-decisions.service';
 
 @Controller('qa-decisions')
 @UseGuards(AuthGuard, RolesGuard)
+@Roles('USER', 'LEADER', 'ADMIN')
 export class QaDecisionsController {
   constructor(private readonly qaDecisions: QaDecisionsService) {}
 

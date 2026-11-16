@@ -11,6 +11,13 @@ export const TRANSITIONS:Record<string,readonly string[]>={
 };
 // Approved users can exchange progress without assignment. Final QA confirmation/reopen is managerial.
 export function allowedTransitions(row:{status:string},user:{role:string}) {
+  if(user.role==='DEV') {
+    const developer:Record<string,readonly string[]>={
+      REQUESTED:['IN_PROGRESS'], RE_REQUESTED:['IN_PROGRESS'],
+      IN_PROGRESS:['RESPONDED'], SKIP_REQUESTED:['IN_PROGRESS'],
+    };
+    return [...(developer[row.status]??[])];
+  }
   const next=[...(TRANSITIONS[row.status]??[])];
   if(user.role!=='USER')return next;
   if(FINAL_STATES.includes(row.status))return [];

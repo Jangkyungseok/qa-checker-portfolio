@@ -1,3 +1,4 @@
+import { AuthUser } from '../common/auth-user';
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import PDFDocument = require('pdfkit');
 import sharp = require('sharp');
@@ -12,11 +13,11 @@ const kst=(v:string)=>new Date(new Date(v).getTime()+9*3600000).toISOString().sl
 export class QaReportPdfService {
   private busy=false;
   constructor(private readonly reports:QaReportsService,private readonly attachments:DefectAttachmentsService) {}
-  async generate(projectId:string,id:string,version:number) {
+  async generate(projectId:string,id:string,version:number,user:AuthUser) {
     if(this.busy)throw new ServiceUnavailableException('다른 PDF를 생성하고 있습니다. 잠시 후 다시 시도해 주세요.');
     this.busy=true;
     try {
-      const data=await this.reports.pdfData(projectId,id,version);
+      const data=await this.reports.pdfData(projectId,id,version,user);
       const images=new Map<string,Buffer>();
       for(const issue of data.featured)if(issue.image){
         const file=await this.attachments.file(issue.id,issue.image.id);

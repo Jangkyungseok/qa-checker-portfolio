@@ -11,7 +11,7 @@ export interface SidebarUser {
   id: string;
   email: string;
   name: string;
-  role: 'USER' | 'LEADER' | 'ADMIN';
+  role: 'USER' | 'LEADER' | 'ADMIN' | 'DEV';
 }
 
 interface Project {
@@ -117,8 +117,8 @@ export default function AppSidebar({
       <button
         type="button"
         className="sidebar-brand brand-home-button"
-        onClick={() => navigate('/dashboard')}
-        aria-label="대시보드로 이동"
+        onClick={() => navigate(user.role === 'DEV' ? '/projects' : '/dashboard')}
+        aria-label={user.role === 'DEV' ? '프로젝트로 이동' : '대시보드로 이동'}
       >
         <div className="brand-mark">Q</div>
         <div>
@@ -173,6 +173,7 @@ export default function AppSidebar({
           )}
         </div>
 
+        {user.role !== 'DEV' && <>
         <div className="workspace-menu-section">
           <button
             type="button"
@@ -206,6 +207,7 @@ export default function AppSidebar({
           </button>
         </div>
 
+        </>}
         {user.role === 'ADMIN' && (
           <div className="workspace-menu-section">
             <button
@@ -217,6 +219,7 @@ export default function AppSidebar({
               <span className="workspace-menu-label">관리</span>
               <span className="workspace-admin-badge">ADMIN</span>
             </button>
+            <button type="button" className="sidebar-menu-item workspace-menu-item" onClick={() => navigate('/admin/users')}>사용자 관리</button>
           </div>
         )}
       </nav>

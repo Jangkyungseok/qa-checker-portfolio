@@ -18,6 +18,7 @@ import { InspectionsService } from './inspections.service';
 
 @Controller('inspections')
 @UseGuards(AuthGuard, RolesGuard)
+@Roles('USER', 'LEADER', 'ADMIN')
 export class InspectionsController {
   constructor(
     private readonly inspections: InspectionsService,

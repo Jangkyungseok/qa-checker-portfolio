@@ -19,6 +19,7 @@ import { UpdateCategoryDto } from './dto/update-category.dto';
 
 @Controller('categories')
 @UseGuards(AuthGuard, RolesGuard)
+@Roles('USER', 'LEADER', 'ADMIN')
 export class CategoriesController {
   constructor(
     private readonly categories: CategoriesService,
